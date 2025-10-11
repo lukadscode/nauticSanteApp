@@ -33,6 +33,8 @@ import WorkoutCategoryScreen from "./screens/WorkoutCategoryScreen";
 import HealthQuestionDetailScreen from "./screens/HealthQuestionDetailScreen";
 import HealthQuestionInputScreen from "./screens/HealthQuestionInputScreen";
 import VideoExerciseScreen from "./screens/Training/VideoExerciseScreen";
+import ConnectedDevices from "./screens/settings/ConnectedDevices";
+import WebViewAuth from "./screens/settings/WebViewAuth";
 
 // Import Bottom Tabs
 import BottomTabs from "./navigation/BottomTabs";
@@ -202,6 +204,16 @@ export default function App() {
             <Stack.Screen
               name="VideoExerciseScreen"
               component={VideoExerciseScreen}
+              options={{headerShown: false}}
+            />
+            <Stack.Screen
+              name="ConnectedDevices"
+              component={ConnectedDevices}
+              options={{headerShown: false}}
+            />
+            <Stack.Screen
+              name="WebViewAuth"
+              component={WebViewAuth}
               options={{headerShown: false}}
             />
             <Stack.Screen

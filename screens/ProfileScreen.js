@@ -81,6 +81,13 @@ const Profile = ({ navigation }) => {
             <Ionicons name="notifications-outline" size={20} color="#FFFFFF" />
             <Text style={styles.settingText}>Notifications</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.settingButton}
+            onPress={() => navigation.navigate("ConnectedDevices")}
+          >
+            <Ionicons name="watch-outline" size={20} color="#FFFFFF" />
+            <Text style={styles.settingText}>Montres connectées</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.secondarySettings}>
