@@ -1,0 +1,56 @@
+{
+  "expo": {
+    "name": "Nautic'Santé",
+    "slug": "nautic-sante-app",
+    "version": "1.0.8",
+    "orientation": "portrait",
+    "icon": "./assets/logos/logo_app_ns.png",
+    "splash": {
+      "image": "./assets/logos/logo_app_ns.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "updates": {
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/0f5e0d31-8eab-446f-9298-38bea28b5222"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.undersolutions.nauticsante",
+      "buildNumber": "1.0.8",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Cette application peut utiliser le micro pour certaines fonctionnalités audio.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.undersolutions.nauticsante",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/logos/logo_app_ns.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/logos/logo_app_ns.png",
+          "color": "#ffffff"
+        }
+      ]
+    ],
+    "userInterfaceStyle": "light",
+    "extra": {
+      "eas": {
+        "projectId": "0f5e0d31-8eab-446f-9298-38bea28b5222"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    }
+  }
+}

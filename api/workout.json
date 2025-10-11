@@ -1,0 +1,196 @@
+{
+  "sessions": [
+    {
+      "id": "1",
+      "title": "Entrainement Fractionné",
+      "date": "2025-01-22",
+      "equipment": ["RowErg"],
+      "workouts": [
+        {
+          "id": "1-1",
+          "title": "RÉSULTAT SUR UNE DISTANCE",
+          "metrics": {
+            "timeCap": "N/A",
+            "repetition": "2x"
+          },
+          "exercises": [
+            { "name": "Rameur", "detail": "30 SEC" },
+            { "name": "Rameur (Récupération)", "detail": "30 SEC" }
+          ]
+        },
+        {
+          "id": "1-2",
+          "title": "TRAVAIL RAPIDE",
+          "description": "Pour le temps | 4 tours",
+          "metrics": {
+            "timeCap": "N/A",
+            "repetition": "15"
+          },
+          "exercises": [
+            { "name": "Cals Ski Erg", "reps": 15 },
+            { "name": "Wall balls", "reps": 15 },
+            { "name": "Burpees", "reps": 10 }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "title": "Entrainement Cardio",
+      "date": "2025-01-24",
+      "equipment": ["BikeErg", "RowErg"],
+      "workouts": [
+        {
+          "id": "2-1",
+          "title": "INTERVALLES DE CARDIO",
+          "metrics": {
+            "timeCap": "10 MIN",
+            "repetition": "5x"
+          },
+          "exercises": [
+            { "name": "BikeErg", "detail": "1 KM" },
+            { "name": "RowErg", "detail": "500 M" }
+          ]
+        },
+        {
+          "id": "2-2",
+          "title": "TRAVAIL D'ENDURANCE",
+          "description": "Pour le temps | 3 tours",
+          "metrics": {
+            "timeCap": "N/A",
+            "repetition": "3x"
+          },
+          "exercises": [
+            { "name": "Rameur", "reps": 500 },
+            { "name": "Pompes", "reps": 20 },
+            { "name": "Squats aériens", "reps": 30 }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "title": "Force et Puissance",
+      "date": "2025-01-25",
+      "equipment": ["Barbell", "Plates"],
+      "workouts": [
+        {
+          "id": "3-1",
+          "title": "TRAVAIL DE FORCE",
+          "metrics": {
+            "timeCap": "15 MIN",
+            "repetition": "4x"
+          },
+          "exercises": [
+            { "name": "Back Squat", "detail": "5 reps @ 80%" },
+            { "name": "Deadlift", "detail": "3 reps @ 85%" }
+          ]
+        },
+        {
+          "id": "3-2",
+          "title": "PUISSANCE",
+          "metrics": {
+            "timeCap": "N/A",
+            "repetition": "10x"
+          },
+          "exercises": [
+            { "name": "Power Clean", "detail": "3 reps @ 70%" },
+            { "name": "Box Jump", "detail": "10 reps" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "title": "Cardio Longue Distance",
+      "date": "2025-01-26",
+      "equipment": ["Tapis de course", "RowErg"],
+      "workouts": [
+        {
+          "id": "4-1",
+          "title": "COURSE LONGUE",
+          "metrics": {
+            "timeCap": "N/A",
+            "repetition": "1x"
+          },
+          "exercises": [
+            { "name": "Tapis de course", "detail": "5 KM" }
+          ]
+        },
+        {
+          "id": "4-2",
+          "title": "ENDURANCE MIXTE",
+          "metrics": {
+            "timeCap": "N/A",
+            "repetition": "5x"
+          },
+          "exercises": [
+            { "name": "RowErg", "detail": "1 KM" },
+            { "name": "Push-Ups", "detail": "20 reps" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "5",
+      "title": "HIIT",
+      "date": "2025-01-27",
+      "equipment": ["BikeErg", "Kettlebell"],
+      "workouts": [
+        {
+          "id": "5-1",
+          "title": "CIRCUIT HIIT",
+          "metrics": {
+            "timeCap": "20 MIN",
+            "repetition": "AMRAP"
+          },
+          "exercises": [
+            { "name": "BikeErg", "detail": "20 CAL" },
+            { "name": "Kettlebell Swing", "detail": "15 reps" },
+            { "name": "Burpees", "detail": "10 reps" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "6",
+      "title": "Workout Test",
+      "date": "2025-01-28",
+      "equipment": ["RowErg"],
+      "workouts": [
+        {
+          "id": "6-1",
+          "title": "TEST DE PUISSANCE",
+          "metrics": {
+            "timeCap": "5 MIN",
+            "repetition": "MAX CAL"
+          },
+          "exercises": [
+            { "name": "RowErg", "detail": "Maximum calories" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "7",
+      "title": "Bodyweight Training",
+      "date": "2025-01-29",
+      "equipment": [],
+      "workouts": [
+        {
+          "id": "7-1",
+          "title": "MÉTÉCON BODYWEIGHT",
+          "metrics": {
+            "timeCap": "15 MIN",
+            "repetition": "AMRAP"
+          },
+          "exercises": [
+            { "name": "Pull-Ups", "detail": "10 reps" },
+            { "name": "Push-Ups", "detail": "15 reps" },
+            { "name": "Air Squats", "detail": "20 reps" }
+          ]
+        }
+      ]
+    }
+  ]
+}
