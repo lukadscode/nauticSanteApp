@@ -130,8 +130,10 @@ const RecordResultScreen = ({ route }) => {
   };
 
   const handleDateChange = (event, selectedDate) => {
-    setShowDatePicker(Platform.OS === "ios");
-    if (selectedDate) {
+    if (Platform.OS === "android") {
+      setShowDatePicker(false);
+    }
+    if (selectedDate && event.type !== "dismissed") {
       setDate(moment(selectedDate));
     }
   };
@@ -350,22 +352,20 @@ const RecordResultScreen = ({ route }) => {
         </TouchableOpacity>
       </View>
 
-      {showDatePicker && (
+      {showDatePicker && Platform.OS === "ios" && (
         <Modal transparent animationType="slide" visible={showDatePicker}>
           <View style={styles.modalBackground}>
             <View style={styles.pickerContainer}>
               <View style={styles.pickerHeader}>
                 <Text style={styles.pickerTitle}>Sélectionner une date</Text>
-                {Platform.OS === "ios" && (
-                  <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                    <Text style={styles.pickerDone}>Terminé</Text>
-                  </TouchableOpacity>
-                )}
+                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                  <Text style={styles.pickerDone}>Terminé</Text>
+                </TouchableOpacity>
               </View>
               <DateTimePicker
                 value={date.toDate()}
                 mode="date"
-                display={Platform.OS === "ios" ? "spinner" : "default"}
+                display="spinner"
                 onChange={handleDateChange}
                 maximumDate={new Date()}
                 themeVariant="light"
@@ -373,6 +373,17 @@ const RecordResultScreen = ({ route }) => {
             </View>
           </View>
         </Modal>
+      )}
+
+      {showDatePicker && Platform.OS === "android" && (
+        <DateTimePicker
+          value={date.toDate()}
+          mode="date"
+          display="default"
+          onChange={handleDateChange}
+          maximumDate={new Date()}
+          themeVariant="light"
+        />
       )}
     </SafeAreaView>
   );
