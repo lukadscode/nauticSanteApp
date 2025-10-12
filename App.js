@@ -35,6 +35,8 @@ import HealthQuestionInputScreen from "./screens/HealthQuestionInputScreen";
 import VideoExerciseScreen from "./screens/Training/VideoExerciseScreen";
 import ConnectedDevices from "./screens/settings/ConnectedDevices";
 import WebViewAuth from "./screens/settings/WebViewAuth";
+import TrainingHistoryScreen from "./screens/TrainingHistoryScreen";
+import TrainingHistoryDetailScreen from "./screens/TrainingHistoryDetailScreen";
 
 // Import Bottom Tabs
 import BottomTabs from "./navigation/BottomTabs";
@@ -214,6 +216,16 @@ export default function App() {
             <Stack.Screen
               name="WebViewAuth"
               component={WebViewAuth}
+              options={{headerShown: false}}
+            />
+            <Stack.Screen
+              name="TrainingHistory"
+              component={TrainingHistoryScreen}
+              options={{headerShown: false}}
+            />
+            <Stack.Screen
+              name="TrainingHistoryDetail"
+              component={TrainingHistoryDetailScreen}
               options={{headerShown: false}}
             />
             <Stack.Screen

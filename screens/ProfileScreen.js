@@ -93,6 +93,13 @@ const Profile = ({ navigation }) => {
         <View style={styles.secondarySettings}>
           <TouchableOpacity
             style={styles.secondaryButton}
+            onPress={() => navigation.navigate("TrainingHistory")}
+          >
+            <Ionicons name="time-outline" size={20} color="#1E283C" />
+            <Text style={styles.secondaryText}>Historique des entraînements</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.secondaryButton}
             onPress={() => navigation.navigate("ContactSupport")}
           >
             <Ionicons name="headset-outline" size={20} color="#1E283C" />
