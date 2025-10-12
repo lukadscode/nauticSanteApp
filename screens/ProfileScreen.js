@@ -11,9 +11,9 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthContext } from "../context/AuthContext";
-import { Image } from "expo-image";
 import { EXPO_PUBLIC_ASSETS_URL } from "../services/env";
 import API from "../services/api";
+import OptimizedImage from "../components/OptimizedImage";
 
 const Profile = ({ navigation }) => {
   const appContext = useContext(AuthContext);
@@ -44,7 +44,7 @@ const Profile = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.profileSection}>
-          <Image
+          <OptimizedImage
             source={{
               uri:
                 EXPO_PUBLIC_ASSETS_URL +
@@ -52,6 +52,9 @@ const Profile = ({ navigation }) => {
                   "/uploads/default_profile_dde55edc6c.png"),
             }}
             style={styles.profileImage}
+            contentFit="cover"
+            fallbackIcon="person-circle-outline"
+            fallbackIconSize={80}
           />
           <Text style={styles.profileName}>
             {user?.firstName} {user?.lastName}

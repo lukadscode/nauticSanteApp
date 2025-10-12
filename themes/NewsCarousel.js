@@ -2,15 +2,15 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   Dimensions,
   FlatList,
-  Image,
-  ImageBackground,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Image } from "expo-image";
 import { useNavigation } from "@react-navigation/native";
 import { EXPO_PUBLIC_ASSETS_URL } from "../services/env";
+import OptimizedImage from "../components/OptimizedImage";
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -58,26 +58,31 @@ const NewsCarousel = ({ sliderAnnouncements }) => {
             style={styles.adContainer}
           >
             {item.title ? (
-              <ImageBackground
-                source={{
-                  uri:
-                    EXPO_PUBLIC_ASSETS_URL + item.image?.formats?.medium?.url,
-                }}
-                style={styles.adImage}
-                imageStyle={{ borderRadius: 12 }}
-              >
+              <View style={styles.imageWrapper}>
+                <OptimizedImage
+                  source={{
+                    uri:
+                      EXPO_PUBLIC_ASSETS_URL + item.image?.formats?.medium?.url,
+                  }}
+                  style={styles.adImage}
+                  contentFit="cover"
+                  fallbackIcon="newspaper-outline"
+                  fallbackIconSize={48}
+                />
                 <View style={styles.overlay}>
                   <Text style={styles.adTitle}>{item.title}</Text>
                 </View>
-              </ImageBackground>
+              </View>
             ) : (
-              <Image
+              <OptimizedImage
                 source={{
                   uri:
                     EXPO_PUBLIC_ASSETS_URL + item.image?.formats?.medium?.url,
                 }}
                 style={styles.adImage}
-                resizeMode="cover"
+                contentFit="cover"
+                fallbackIcon="newspaper-outline"
+                fallbackIconSize={48}
               />
             )}
           </TouchableOpacity>
@@ -103,6 +108,12 @@ const styles = StyleSheet.create({
     marginVertical: 10,
     alignItems: "center",
   },
+  imageWrapper: {
+    width: screenWidth - 40,
+    height: 150,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
   adImage: {
     width: screenWidth - 40,
     height: 150,
@@ -115,7 +126,11 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   overlay: {
-    flex: 1,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "rgba(0, 0, 0, 0.5)",

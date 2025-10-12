@@ -5,8 +5,8 @@ import {Ionicons} from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import {AuthContext} from "../../context/AuthContext";
 import API from "../../services/api";
-import {Image} from 'expo-image';
 import {EXPO_PUBLIC_ASSETS_URL} from "../../services/env";
+import OptimizedImage from "../../components/OptimizedImage";
 
 const EditProfile = ({navigation}) => {
   const appContext = useContext(AuthContext);
@@ -88,9 +88,12 @@ const EditProfile = ({navigation}) => {
               <Text>Loading...</Text>
               :
               (avatar?.formats?.medium?.url ? (
-                <Image
+                <OptimizedImage
                   source={{uri: EXPO_PUBLIC_ASSETS_URL + avatar?.formats?.medium?.url}}
                   style={styles.profileImage}
+                  contentFit="cover"
+                  fallbackIcon="person-circle-outline"
+                  fallbackIconSize={60}
                 />
               ) : (
                 <View style={styles.placeholderImage}>

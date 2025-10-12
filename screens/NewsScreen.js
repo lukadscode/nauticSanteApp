@@ -11,10 +11,10 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { EXPO_PUBLIC_ASSETS_URL } from "../services/env";
-import { useNavigation } from "@react-navigation/native"; // ✅ Import manquant
+import { useNavigation } from "@react-navigation/native";
+import OptimizedImage from "../components/OptimizedImage";
 
 const NewsScreen = ({ route }) => {
   const news = route.params?.news;
@@ -47,12 +47,15 @@ const NewsScreen = ({ route }) => {
           </TouchableOpacity>
 
           {/* Image */}
-          <Image
+          <OptimizedImage
             source={{
               uri: EXPO_PUBLIC_ASSETS_URL + news.image?.formats?.medium?.url,
             }}
             style={styles.image}
-            cachePolicy="memory-disk"
+            contentFit="cover"
+            fallbackIcon="newspaper-outline"
+            fallbackIconSize={64}
+            priority="high"
           />
 
           {/* Author */}
