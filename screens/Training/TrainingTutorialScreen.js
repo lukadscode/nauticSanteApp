@@ -168,30 +168,32 @@ const TrainingTutorialScreen = ({ route }) => {
   const currentExercise = uniqueExercises[currentIndex];
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="close" size={28} color="#1E283C" />
-        </TouchableOpacity>
-        <View style={styles.progressContainer}>
-          <Text style={styles.progressText}>
-            {currentIndex + 1} / {uniqueExercises.length}
-          </Text>
-          <View style={styles.progressBarContainer}>
-            <View
-              style={[
-                styles.progressBar,
-                {
-                  width: `${((currentIndex + 1) / uniqueExercises.length) * 100}%`,
-                },
-              ]}
-            />
+    <View style={styles.container}>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="close" size={28} color="#1E283C" />
+          </TouchableOpacity>
+          <View style={styles.progressContainer}>
+            <Text style={styles.progressText}>
+              {currentIndex + 1} / {uniqueExercises.length}
+            </Text>
+            <View style={styles.progressBarContainer}>
+              <View
+                style={[
+                  styles.progressBar,
+                  {
+                    width: `${((currentIndex + 1) / uniqueExercises.length) * 100}%`,
+                  },
+                ]}
+              />
+            </View>
           </View>
         </View>
-      </View>
+      </SafeAreaView>
 
       <Animated.View
         style={{ flex: 1, transform: [{ translateX: pan }] }}
@@ -341,7 +343,7 @@ const TrainingTutorialScreen = ({ route }) => {
       <Text style={styles.swipeHint}>
         💡 Swipez pour naviguer entre les exercices
       </Text>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -349,6 +351,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#FBFCFF",
+  },
+  safeArea: {
+    backgroundColor: "#FFFFFF",
   },
   header: {
     flexDirection: "row",

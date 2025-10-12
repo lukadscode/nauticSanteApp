@@ -226,17 +226,19 @@ const TrainingSessionPlayerScreen = ({route}) => {
 
   if (currentIndex === -1) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons name="arrow-back" size={24} color="#1E283C" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Préparation</Text>
-          <View style={{width: 40}} />
-        </View>
+      <View style={styles.container}>
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Ionicons name="arrow-back" size={24} color="#1E283C" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Préparation</Text>
+            <View style={{width: 40}} />
+          </View>
+        </SafeAreaView>
         <ScrollView contentContainerStyle={styles.startContainer}>
           <Text style={styles.exerciseTitle}>{session.name}</Text>
           <Text style={styles.startMessage}>
@@ -292,7 +294,7 @@ const TrainingSessionPlayerScreen = ({route}) => {
             <Ionicons name="chevron-forward" size={20} color="#FFFFFF"/>
           </TouchableOpacity>
         </ScrollView>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -300,31 +302,33 @@ const TrainingSessionPlayerScreen = ({route}) => {
   const progress = timeLeft / initialTime;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={handleBackPress}
-        >
-          <Ionicons name="close" size={24} color="#1E283C" />
-        </TouchableOpacity>
-        <View style={styles.progressInfo}>
-          <Text style={styles.progressText}>
-            {currentIndex + 1} / {allExercises.length}
-          </Text>
-          <View style={styles.progressBarContainer}>
-            <View
-              style={[
-                styles.progressBar,
-                {width: `${((currentIndex + 1) / allExercises.length) * 100}%`},
-              ]}
-            />
+    <View style={styles.container}>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={handleBackPress}
+          >
+            <Ionicons name="close" size={24} color="#1E283C" />
+          </TouchableOpacity>
+          <View style={styles.progressInfo}>
+            <Text style={styles.progressText}>
+              {currentIndex + 1} / {allExercises.length}
+            </Text>
+            <View style={styles.progressBarContainer}>
+              <View
+                style={[
+                  styles.progressBar,
+                  {width: `${((currentIndex + 1) / allExercises.length) * 100}%`},
+                ]}
+              />
+            </View>
           </View>
+          <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
+            <Ionicons name="play-skip-forward" size={24} color="#1E283C" />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
-          <Ionicons name="play-skip-forward" size={24} color="#1E283C" />
-        </TouchableOpacity>
-      </View>
+      </SafeAreaView>
 
       <OptimizedImage
         source={{
@@ -440,7 +444,7 @@ const TrainingSessionPlayerScreen = ({route}) => {
           <Ionicons name="chevron-forward" size={20} color="#FFFFFF"/>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -448,6 +452,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#FBFCFF",
+  },
+  safeArea: {
+    backgroundColor: "#FFFFFF",
   },
   header: {
     flexDirection: "row",
