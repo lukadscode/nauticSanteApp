@@ -7,7 +7,9 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Animated,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import RadarChartComponent from "../screens/RadarChartComponent";
 import moment from "moment/moment";
@@ -26,6 +28,7 @@ const HealthSummaryScreen = ({ navigation }) => {
   const [isRefreshing, setRefreshing] = useState(false);
   const [recap, setRecap] = useState({});
   const [activityIndexes, setActivityIndexes] = useState([]);
+  const [animatedValue] = useState(new Animated.Value(0));
 
   const tabs = ["Semaine", "Mois", "Année"];
 
@@ -35,27 +38,33 @@ const HealthSummaryScreen = ({ navigation }) => {
       label: "Séances",
       value: recap.sessionCount || 0,
       icon: "barbell-outline",
+      color: "#2167b1",
+      bgColor: "#E3F2FD",
     },
     {
       id: "2",
       label: "Types",
       value: recap.sessionTypes || 0,
       icon: "layers-outline",
+      color: "#FF6B6B",
+      bgColor: "#FFE5E5",
     },
     {
       id: "3",
       label: "Durée",
       value: convertSecToHumanTiming(recap.totalDuration || 0),
       icon: "time-outline",
+      color: "#4CAF50",
+      bgColor: "#E8F5E9",
     },
   ];
 
   const questions = [
-    { id: "q1", text: "Équilibre", slug: "equilibre" },
-    { id: "q2", text: "Souplesse", slug: "souplesse" },
-    { id: "q3", text: "Force membres sup.", slug: "force-bras" },
-    { id: "q4", text: "Force membres inf.", slug: "force-jambes" },
-    { id: "q5", text: "Endurance", slug: "endurance" },
+    { id: "q1", text: "Équilibre", slug: "equilibre", icon: "body-outline", color: "#9C27B0" },
+    { id: "q2", text: "Souplesse", slug: "souplesse", icon: "fitness-outline", color: "#FF9800" },
+    { id: "q3", text: "Force membres sup.", slug: "force-bras", icon: "barbell-outline", color: "#2196F3" },
+    { id: "q4", text: "Force membres inf.", slug: "force-jambes", icon: "walk-outline", color: "#4CAF50" },
+    { id: "q5", text: "Endurance", slug: "endurance", icon: "heart-outline", color: "#F44336" },
   ];
 
   const getMonthlyLabels = () => {
@@ -67,7 +76,7 @@ const HealthSummaryScreen = ({ navigation }) => {
     while (current.clone().startOf("week").isBefore(end)) {
       const weekStart = current.clone().startOf("week");
       const weekEnd = current.clone().endOf("week");
-      labels.push(`${weekStart.format("DD/MM")} au ${weekEnd.format("DD/MM")}`);
+      labels.push(`${weekStart.format("DD/MM")} - ${weekEnd.format("DD/MM")}`);
       current.add(1, "week");
     }
 
@@ -75,18 +84,8 @@ const HealthSummaryScreen = ({ navigation }) => {
   };
 
   const getYearlyLabels = () => [
-    "Janvier",
-    "Février",
-    "Mars",
-    "Avril",
-    "Mai",
-    "Juin",
-    "Juillet",
-    "Août",
-    "Septembre",
-    "Octobre",
-    "Novembre",
-    "Décembre",
+    "Jan", "Fév", "Mar", "Avr", "Mai", "Juin",
+    "Juil", "Août", "Sep", "Oct", "Nov", "Déc",
   ];
 
   const monthlyLabels = getMonthlyLabels();
@@ -127,6 +126,12 @@ const HealthSummaryScreen = ({ navigation }) => {
 
   useEffect(() => {
     loadRecap();
+    Animated.spring(animatedValue, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 20,
+      friction: 7,
+    }).start();
   }, [activeTab]);
 
   const onRefresh = async () => {
@@ -137,22 +142,21 @@ const HealthSummaryScreen = ({ navigation }) => {
 
   const getChartData = (activeTab) => {
     if (activeTab === "Mois") {
-      return{
-          labels: monthlyLabels.map((_, i) => (i + 1).toString()),
-          realLabels: monthlyLabels,
-          data: (activityIndexes || [])
-            .map((value) => value.activityIndex)
-            .filter((val) => typeof val === "number" && !isNaN(val)),
-        }
-    
+      return {
+        labels: monthlyLabels.map((_, i) => `S${i + 1}`),
+        realLabels: monthlyLabels,
+        data: (activityIndexes || [])
+          .map((value) => value.activityIndex)
+          .filter((val) => typeof val === "number" && !isNaN(val)),
+      };
     } else if (activeTab === "Année") {
       return {
-        labels: yearlyLabels.map((_, i) => (i + 1).toString()),
+        labels: yearlyLabels,
         realLabels: yearlyLabels,
         data: (activityIndexes || [])
           .map((value) => value.activityIndex)
           .filter((val) => typeof val === "number" && !isNaN(val)),
-      }
+      };
     }
   };
 
@@ -166,23 +170,27 @@ const HealthSummaryScreen = ({ navigation }) => {
 
       if (!chart.data || chart.data.length === 0) {
         return (
-          <Text
-            style={{ textAlign: "center", color: "#8D95A7", marginTop: 10 }}
-          >
-            Aucune donnée disponible pour cette période.
-          </Text>
+          <View style={styles.emptyChartContainer}>
+            <Ionicons name="bar-chart-outline" size={48} color="#E0E6F0" />
+            <Text style={styles.emptyChartText}>
+              Aucune donnée disponible pour cette période
+            </Text>
+            <Text style={styles.emptyChartSubtext}>
+              Commencez à enregistrer vos entraînements
+            </Text>
+          </View>
         );
       }
 
       return (
-        <View style={{ marginTop: 20, paddingBottom: 10 }}>
+        <View style={styles.chartWrapper}>
           <LineChart
             data={{
               labels: chart.labels,
               datasets: [{ data: chart.data }],
             }}
-            width={screenWidth - 60}
-            height={226}
+            width={screenWidth - 80}
+            height={220}
             yAxisSuffix="%"
             chartConfig={{
               backgroundColor: "#fff",
@@ -193,25 +201,33 @@ const HealthSummaryScreen = ({ navigation }) => {
               labelColor: () => "#8D95A7",
               style: { borderRadius: 16 },
               propsForDots: {
-                r: "4",
+                r: "5",
                 strokeWidth: "2",
                 stroke: "#2167b1",
+                fill: "#fff",
               },
-              propsForLabels: {
-                dy: 16,
+              propsForBackgroundLines: {
+                strokeDasharray: "",
+                stroke: "#E0E6F0",
               },
             }}
-            style={{ borderRadius: 16 }}
+            style={styles.lineChart}
+            bezier
             verticalLabelRotation={0}
             fromZero={true}
           />
-          <View style={styles.labelBoxWrapperGrid}>
-            {chart.realLabels.map((label, i) => (
-              <View key={i} style={styles.labelBoxGridItem}>
-                <Text style={styles.labelText}>{`${i + 1}. ${label}`}</Text>
-              </View>
-            ))}
-          </View>
+          {activeTab === "Mois" && (
+            <View style={styles.legendContainer}>
+              {chart.realLabels.map((label, i) => (
+                <View key={i} style={styles.legendItem}>
+                  <Text style={styles.legendLabel}>S{i + 1}:</Text>
+                  <Text style={styles.legendValue} numberOfLines={1}>
+                    {label}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
       );
     }
@@ -219,9 +235,14 @@ const HealthSummaryScreen = ({ navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <View style={styles.headerContainer}>
         <Text style={styles.headerTitle}>Suivi</Text>
+        <Text style={styles.headerSubtitle}>
+          {activeTab === "Semaine" && moment().format("WW")}
+          {activeTab === "Mois" && moment().format("MMMM YYYY")}
+          {activeTab === "Année" && moment().format("YYYY")}
+        </Text>
         <View style={styles.tabContainer}>
           {tabs.map((tab) => (
             <TouchableOpacity
@@ -238,7 +259,7 @@ const HealthSummaryScreen = ({ navigation }) => {
                   activeTab === tab && styles.activeTabText,
                 ]}
               >
-                {tab.toUpperCase()}
+                {tab}
               </Text>
             </TouchableOpacity>
           ))}
@@ -247,80 +268,146 @@ const HealthSummaryScreen = ({ navigation }) => {
 
       <ScrollView
         style={styles.scrollArea}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
         }
       >
         <View style={styles.contentContainer}>
-          <View style={styles.statRow}>
-            {stats.map((stat) => (
-              <View key={stat.id} style={styles.statCard}>
-                <Ionicons name={stat.icon} size={24} color="#fff" />
-                <Text style={styles.statValue}>{stat.value}</Text>
+          <Animated.View
+            style={[
+              styles.statRow,
+              {
+                opacity: animatedValue,
+                transform: [
+                  {
+                    translateY: animatedValue.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [20, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            {stats.map((stat, index) => (
+              <Animated.View
+                key={stat.id}
+                style={[
+                  styles.statCard,
+                  { backgroundColor: stat.bgColor },
+                  {
+                    opacity: animatedValue,
+                    transform: [
+                      {
+                        scale: animatedValue.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0.8, 1],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              >
+                <View style={[styles.statIconContainer, { backgroundColor: stat.color }]}>
+                  <Ionicons name={stat.icon} size={20} color="#fff" />
+                </View>
+                <Text style={[styles.statValue, { color: stat.color }]}>
+                  {stat.value}
+                </Text>
                 <Text style={styles.statLabel}>{stat.label}</Text>
-              </View>
+              </Animated.View>
             ))}
-          </View>
+          </Animated.View>
 
           {(activeTab === "Mois" || activeTab === "Année") && (
             <View style={styles.chartContainer}>
-              <Text style={styles.sectionTitle}>
-                Évolution de ton indice d'activité
-              </Text>
+              <View style={styles.sectionHeader}>
+                <Ionicons name="trending-up" size={20} color="#2167b1" />
+                <Text style={styles.sectionTitle}>Évolution d'activité</Text>
+              </View>
               {renderChart()}
             </View>
           )}
 
           <View style={styles.chartContainer}>
-            <Text style={styles.sectionTitle}>Suivi des évaluations</Text>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="analytics-outline" size={20} color="#2167b1" />
+              <Text style={styles.sectionTitle}>Radar des capacités</Text>
+            </View>
             <RadarChartComponent />
-            <Text style={styles.sectionTitle}>Tes évaluations</Text>
+          </View>
+
+          <View style={styles.evaluationsContainer}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="checkmark-done-outline" size={20} color="#2167b1" />
+              <Text style={styles.sectionTitle}>Vos évaluations</Text>
+            </View>
+            <Text style={styles.evaluationsSubtitle}>
+              Suivez l'évolution de vos capacités physiques
+            </Text>
             {questions.map((q) => (
               <TouchableOpacity
                 key={q.id}
-                style={styles.resultItem}
+                style={styles.evaluationItem}
                 onPress={() => openQuestionDetails(q.slug)}
+                activeOpacity={0.7}
               >
-                <Text style={styles.resultLabel}>{q.text}</Text>
-                <Ionicons name="chevron-forward" size={20} color="#fff" />
+                <View style={[styles.evaluationIcon, { backgroundColor: q.color + "20" }]}>
+                  <Ionicons name={q.icon} size={22} color={q.color} />
+                </View>
+                <Text style={styles.evaluationLabel}>{q.text}</Text>
+                <Ionicons name="chevron-forward" size={20} color="#8D95A7" />
               </TouchableOpacity>
             ))}
           </View>
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f6f9ff" },
-  scrollArea: { flex: 1 },
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#f6f9ff",
+  },
+  scrollArea: {
+    flex: 1,
+  },
   headerContainer: {
     backgroundColor: "#ffffff",
-    paddingTop: 50,
+    paddingTop: 15,
     paddingBottom: 20,
     paddingHorizontal: 20,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 4,
+    shadowRadius: 8,
+    elevation: 5,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
+    fontSize: 26,
+    fontWeight: "800",
     color: "#1E283C",
     textAlign: "center",
-    marginBottom: 10,
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: "#8D95A7",
+    textAlign: "center",
+    marginBottom: 15,
+    textTransform: "capitalize",
   },
   tabContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    backgroundColor: "#EDEFF3",
+    backgroundColor: "#F5F7FA",
     borderRadius: 25,
-    padding: 5,
+    padding: 4,
   },
   tabButton: {
     flex: 1,
@@ -328,65 +415,169 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: 20,
   },
-  activeTabButton: { backgroundColor: "#2167b1" },
-  tabText: { fontSize: 14, fontWeight: "600", color: "#8D95A7" },
-  activeTabText: { color: "#FFFFFF" },
-  contentContainer: { padding: 20 },
+  activeTabButton: {
+    backgroundColor: "#2167b1",
+    shadowColor: "#2167b1",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  tabText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#8D95A7",
+  },
+  activeTabText: {
+    color: "#FFFFFF",
+  },
+  contentContainer: {
+    padding: 20,
+  },
   statRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 20,
+    gap: 12,
   },
   statCard: {
     flex: 1,
-    backgroundColor: "#2167b1",
-    borderRadius: 15,
-    padding: 15,
-    marginHorizontal: 5,
+    borderRadius: 16,
+    padding: 16,
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  statValue: { fontSize: 20, fontWeight: "700", color: "#fff", marginTop: 10 },
-  statLabel: { fontSize: 14, color: "#A9B6D1" },
+  statIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: "800",
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: "#8D95A7",
+    fontWeight: "600",
+  },
   chartContainer: {
     backgroundColor: "#FFFFFF",
     borderRadius: 20,
     padding: 20,
-    marginBottom: 30,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
     elevation: 3,
   },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 15,
+    gap: 8,
+  },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "700",
     color: "#1E283C",
-    marginBottom: 10,
   },
-  resultItem: {
-    backgroundColor: "#2167b1",
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 10,
-    flexDirection: "row",
-    justifyContent: "space-between",
+  chartWrapper: {
     alignItems: "center",
   },
-  resultLabel: { color: "#fff", fontSize: 14 },
-  labelBoxWrapperGrid: {
+  lineChart: {
+    borderRadius: 16,
+  },
+  legendContainer: {
+    marginTop: 15,
+    width: "100%",
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "space-between",
-    marginTop: 16,
+    gap: 8,
   },
-  labelBoxGridItem: {
-    width: "48%",
-    backgroundColor: "#EAF3FF",
-    padding: 8,
-    marginBottom: 8,
+  legendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F5F7FA",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 8,
+    flex: 1,
+    minWidth: "45%",
   },
-  labelText: {
+  legendLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#2167b1",
+    marginRight: 4,
+  },
+  legendValue: {
+    fontSize: 11,
+    color: "#8D95A7",
+    flex: 1,
+  },
+  emptyChartContainer: {
+    paddingVertical: 40,
+    alignItems: "center",
+  },
+  emptyChartText: {
+    fontSize: 14,
+    color: "#8D95A7",
+    marginTop: 12,
+    fontWeight: "600",
+  },
+  emptyChartSubtext: {
+    fontSize: 12,
+    color: "#B0B9C8",
+    marginTop: 4,
+  },
+  evaluationsContainer: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  evaluationsSubtitle: {
     fontSize: 13,
+    color: "#8D95A7",
+    marginBottom: 15,
+  },
+  evaluationItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F5F7FA",
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 10,
+  },
+  evaluationIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  evaluationLabel: {
+    flex: 1,
     color: "#1E283C",
-    textAlign: "center",
+    fontSize: 15,
+    fontWeight: "600",
   },
 });
 

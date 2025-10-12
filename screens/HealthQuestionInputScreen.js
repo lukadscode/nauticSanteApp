@@ -1,12 +1,14 @@
 import React, { useContext, useEffect, useState } from "react";
 import {
   Alert,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import API from "../services/api";
@@ -21,6 +23,7 @@ const HealthQuestionInputScreen = ({ route }) => {
 
   const [value, setValue] = useState("");
   const [selectValue, setSelectValue] = useState(0);
+  const [loading, setLoading] = useState(false);
 
   const navigation = useNavigation();
   const appContext = useContext(AuthContext);
@@ -46,12 +49,14 @@ const HealthQuestionInputScreen = ({ route }) => {
     const forms = (await API.get("/forms")).data.data;
     setForms(forms);
   };
+
   const handleSave = async () => {
     if (!value && !selectValue) {
       Alert.alert("Erreur", "Veuillez répondre à la question.");
       return;
     }
 
+    setLoading(true);
     let score = 0;
 
     switch (questionSlug) {
@@ -72,7 +77,7 @@ const HealthQuestionInputScreen = ({ route }) => {
               score = 1;
             }
           }
-        } else if (user.civility === "Femme") {
+        } else if (appContext.user.civility === "Femme") {
           if (userAge >= 61) {
             if (value >= 60) {
               score = 5;
@@ -166,7 +171,7 @@ const HealthQuestionInputScreen = ({ route }) => {
               score = 1;
             }
           }
-        } else if (user.civility === "Femme") {
+        } else if (appContext.user.civility === "Femme") {
           if (userAge >= 61) {
             if (value >= 27) {
               score = 5;
@@ -293,7 +298,7 @@ const HealthQuestionInputScreen = ({ route }) => {
               score = 1;
             }
           }
-        } else if (user.civility === "Femme") {
+        } else if (appContext.user.civility === "Femme") {
           if (userAge >= 61) {
             if (value >= 16) {
               score = 5;
@@ -420,7 +425,7 @@ const HealthQuestionInputScreen = ({ route }) => {
               score = 1;
             }
           }
-        } else if (user.civility === "Femme") {
+        } else if (appContext.user.civility === "Femme") {
           if (userAge >= 61) {
             if (value >= 1050) {
               score = 5;
@@ -486,151 +491,287 @@ const HealthQuestionInputScreen = ({ route }) => {
         break;
     }
 
-    await API.post("/form-results/createMyElement", {
-      value,
-      score,
-      form: questionSlug,
-    });
+    try {
+      await API.post("/form-results/createMyElement", {
+        value,
+        score,
+        form: questionSlug,
+      });
 
-    appContext.setRefreshFormScan(!appContext.refreshFormScan);
+      appContext.setRefreshFormScan(!appContext.refreshFormScan);
 
-    Alert.alert("✅ Enregistré", `Score : ${score}`, [
-      {
-        text: "OK",
-        onPress: () => navigation.goBack(),
-      },
-    ]);
+      Alert.alert("Enregistré", `Votre score est : ${score} sur 5`, [
+        {
+          text: "OK",
+          onPress: () => navigation.goBack(),
+        },
+      ]);
+    } catch (error) {
+      Alert.alert("Erreur", "Impossible d'enregistrer votre résultat.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <View style={styles.container}>
-      {/* Back */}
-      <TouchableOpacity
-        onPress={() => navigation.goBack()}
-        style={styles.backButton}
-      >
-        <Ionicons name="chevron-back" size={24} color="#1E283C" />
-        <Text style={styles.backText}>Retour</Text>
-      </TouchableOpacity>
-
-      {/* Question card */}
-      <View style={styles.card}>
-        <View style={styles.iconWrapper}>
-          <Ionicons name={question.icon} size={32} color="#2167b1" />
-        </View>
-        <Text style={styles.title}>{question?.title}</Text>
-        <Text style={styles.description}>{question?.description}</Text>
-      </View>
-      {/* response card */}
-      {questionSlug === "souplesse" ? (
-        <Picker
-          selectedValue={selectValue}
-          onValueChange={(itemValue) => setSelectValue(itemValue)}
+    <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
         >
-          <Picker.Item label="Toucher le sol doigts fermés" value={5} />
-          <Picker.Item label="Le bout des doigts touche le sol" value={4} />
-          <Picker.Item
-            label="Le bout des doigts touche le cou de pied"
-            value={3}
-          />
-          <Picker.Item
-            label="Le bout des doigts atteint le bas des tibias"
-            value={2}
-          />
-          <Picker.Item
-            label="Le bout des doigts atteints le milieu des tibias"
-            value={1}
-          />
-        </Picker>
-      ) : (
-        <>
-          {/* Input field */}
-          <Text style={styles.label}>Indiquez votre score :</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="ex : 3"
-            keyboardType="numeric"
-            value={value}
-            onChangeText={setValue}
-          />
-        </>
-      )}
+          <Ionicons name="arrow-back" size={24} color="#1E283C" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Nouvelle évaluation</Text>
+        <View style={styles.placeholder} />
+      </View>
 
-      {/* Save button */}
-      <TouchableOpacity style={styles.button} onPress={handleSave}>
-        <Text style={styles.buttonText}>💾 Enregistrer</Text>
-      </TouchableOpacity>
-    </View>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <View style={styles.questionCard}>
+          {question.icon && (
+            <View style={styles.iconContainer}>
+              <Ionicons name={question.icon} size={32} color="#2167b1" />
+            </View>
+          )}
+          <Text style={styles.questionTitle}>{question?.title}</Text>
+          {question?.description && (
+            <Text style={styles.questionDescription}>{question?.description}</Text>
+          )}
+        </View>
+
+        <View style={styles.formContainer}>
+          {questionSlug === "souplesse" ? (
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Sélectionnez votre niveau</Text>
+              <View style={styles.pickerWrapper}>
+                <Picker
+                  selectedValue={selectValue}
+                  onValueChange={(itemValue) => setSelectValue(itemValue)}
+                  style={styles.picker}
+                >
+                  <Picker.Item label="Choisissez une option..." value={0} />
+                  <Picker.Item label="Toucher le sol doigts fermés" value={5} />
+                  <Picker.Item label="Le bout des doigts touche le sol" value={4} />
+                  <Picker.Item
+                    label="Le bout des doigts touche le cou de pied"
+                    value={3}
+                  />
+                  <Picker.Item
+                    label="Le bout des doigts atteint le bas des tibias"
+                    value={2}
+                  />
+                  <Picker.Item
+                    label="Le bout des doigts atteint le milieu des tibias"
+                    value={1}
+                  />
+                </Picker>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Indiquez votre score</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons name="create-outline" size={20} color="#8D95A7" />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Entrez votre valeur"
+                  keyboardType="numeric"
+                  value={value}
+                  onChangeText={setValue}
+                  placeholderTextColor="#B0B9C8"
+                />
+              </View>
+              <Text style={styles.hint}>
+                {questionSlug === "equilibre" && "En secondes (ex: 45)"}
+                {questionSlug === "force-bras" && "Nombre de répétitions"}
+                {questionSlug === "force-jambes" && "Nombre de répétitions"}
+                {questionSlug === "endurance" && "Distance en mètres (ex: 1200)"}
+              </Text>
+            </View>
+          )}
+
+          <View style={styles.infoCard}>
+            <Ionicons name="information-circle" size={20} color="#2167b1" />
+            <Text style={styles.infoText}>
+              Votre score sera calculé automatiquement en fonction de votre âge et sexe
+            </Text>
+          </View>
+        </View>
+      </ScrollView>
+
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={[styles.saveButton, loading && styles.saveButtonDisabled]}
+          onPress={handleSave}
+          disabled={loading}
+        >
+          {loading ? (
+            <Text style={styles.saveButtonText}>Enregistrement...</Text>
+          ) : (
+            <>
+              <Ionicons name="checkmark-circle" size={22} color="#fff" />
+              <Text style={styles.saveButtonText}>Enregistrer</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
-    backgroundColor: "#f4f9ff",
-    padding: 20,
+    backgroundColor: "#f6f9ff",
   },
-  backButton: {
+  header: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0E6F0",
+  },
+  backButton: {
+    padding: 5,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1E283C",
+  },
+  placeholder: {
+    width: 34,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  questionCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 20,
+    margin: 20,
+    marginBottom: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+    alignItems: "center",
+  },
+  iconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "#E3F2FD",
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 15,
   },
-  backText: {
-    fontSize: 16,
-    color: "#1E283C",
-    marginLeft: 5,
-    fontWeight: "600",
-  },
-  card: {
-    backgroundColor: "#e6f0fb",
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 25,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-  },
-  iconWrapper: {
-    backgroundColor: "#d1e5fc",
-    alignSelf: "flex-start",
-    borderRadius: 12,
-    padding: 8,
-    marginBottom: 12,
-  },
-  title: {
+  questionTitle: {
     fontSize: 20,
     fontWeight: "700",
     color: "#1E283C",
-    marginBottom: 6,
-  },
-  description: {
-    fontSize: 15,
-    color: "#495867",
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#1E283C",
+    textAlign: "center",
     marginBottom: 8,
   },
-  input: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 16,
-    borderColor: "#cfd8dc",
-    borderWidth: 1,
-    marginBottom: 25,
+  questionDescription: {
+    fontSize: 14,
+    color: "#8D95A7",
+    textAlign: "center",
+    lineHeight: 20,
   },
-  button: {
-    backgroundColor: "#2167b1",
-    padding: 16,
-    borderRadius: 15,
+  formContainer: {
+    padding: 20,
+    paddingTop: 10,
+  },
+  inputContainer: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 15,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  label: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1E283C",
+    marginBottom: 12,
+  },
+  inputWrapper: {
+    flexDirection: "row",
     alignItems: "center",
-    elevation: 2,
+    backgroundColor: "#F5F7FA",
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    borderWidth: 2,
+    borderColor: "#E0E6F0",
   },
-  buttonText: {
+  input: {
+    flex: 1,
+    fontSize: 16,
+    color: "#1E283C",
+    paddingVertical: 14,
+    paddingLeft: 10,
+  },
+  hint: {
+    fontSize: 12,
+    color: "#8D95A7",
+    marginTop: 8,
+    fontStyle: "italic",
+  },
+  pickerWrapper: {
+    backgroundColor: "#F5F7FA",
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#E0E6F0",
+    overflow: "hidden",
+  },
+  picker: {
+    height: 50,
+  },
+  infoCard: {
+    flexDirection: "row",
+    backgroundColor: "#E3F2FD",
+    borderRadius: 12,
+    padding: 15,
+    gap: 10,
+    alignItems: "center",
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 13,
+    color: "#1E283C",
+    lineHeight: 18,
+  },
+  buttonContainer: {
+    padding: 20,
+    paddingBottom: 30,
+  },
+  saveButton: {
+    flexDirection: "row",
+    backgroundColor: "#2167b1",
+    borderRadius: 15,
+    paddingVertical: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    shadowColor: "#2167b1",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  saveButtonDisabled: {
+    backgroundColor: "#B0B9C8",
+  },
+  saveButtonText: {
     fontSize: 16,
     fontWeight: "700",
     color: "#fff",
