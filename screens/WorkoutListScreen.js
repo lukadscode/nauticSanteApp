@@ -1,5 +1,6 @@
 import React, {useEffect, useState} from "react";
-import {FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View,} from "react-native";
+import {ActivityIndicator, FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View,} from "react-native";
+import {Ionicons} from "@expo/vector-icons";
 import API from "../services/api";
 import {useNavigation} from "@react-navigation/native";
 
@@ -7,6 +8,7 @@ const WorkoutListScreen = () => {
   const [activities, setActivities] = useState([]);
   const [objectives, setObjectives] = useState([]);
   const [activeTab, setActiveTab] = useState("activity");
+  const [loading, setLoading] = useState(true);
 
   const navigation = useNavigation();
 
@@ -15,12 +17,20 @@ const WorkoutListScreen = () => {
   }, []);
 
   const fetchDatas = async () => {
+    setLoading(true);
+    try {
+      const activitiesResponse = await API.get("/tags?filters[type][$eq]=activity&populate=sessions");
+      const objectivesResponse = await API.get("/tags?filters[type][$eq]=objective&populate=sessions");
 
-    const activities = API.get("/tags?filters[type][$eq]=activity&populate=sessions");
-    const objectives = API.get("/tags?filters[type][$eq]=objective&populate=sessions");
-
-    setObjectives((await objectives).data.data);
-    setActivities((await activities).data.data);
+      setActivities(activitiesResponse?.data?.data || []);
+      setObjectives(objectivesResponse?.data?.data || []);
+    } catch (error) {
+      console.error("Erreur lors du chargement des données :", error);
+      setActivities([]);
+      setObjectives([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const tabs = [
@@ -30,26 +40,29 @@ const WorkoutListScreen = () => {
 
   const activitiesSessionsMap = {};
   activities.forEach(activity => {
-    const sessionIds = activity.sessions.map(session => session.id);
-    activitiesSessionsMap[activity.id] = sessionIds;
+    if (activity && activity.sessions && Array.isArray(activity.sessions)) {
+      const sessionIds = activity.sessions.map(session => session?.id).filter(Boolean);
+      activitiesSessionsMap[activity.id] = sessionIds;
+    } else {
+      activitiesSessionsMap[activity.id] = [];
+    }
   });
 
-// Map d’objectifs : id -> [ids de sessions]
   const objectivesSessionsMap = {};
   objectives.forEach(objective => {
-    const sessionIds = objective.sessions.map(session => session.id);
-    objectivesSessionsMap[objective.id] = sessionIds;
+    if (objective && objective.sessions && Array.isArray(objective.sessions)) {
+      const sessionIds = objective.sessions.map(session => session?.id).filter(Boolean);
+      objectivesSessionsMap[objective.id] = sessionIds;
+    } else {
+      objectivesSessionsMap[objective.id] = [];
+    }
   });
 
-  // Fonction pour trouver les paires activité/objectif avec sessions communes
-  // Pour chaque activité, chercher les objectifs qui partagent AU MOINS une session
   let activityGroups = activities.map(activity => {
-    const activitySessionIds = new Set(activitiesSessionsMap[activity.id]);
+    const activitySessionIds = new Set(activitiesSessionsMap[activity.id] || []);
 
-    // Filtrer les objectifs qui partagent au moins une session
     const matchingObjectives = objectives.filter(objective => {
-      const objectiveSessionIds = objectivesSessionsMap[objective.id];
-      // Intersection
+      const objectiveSessionIds = objectivesSessionsMap[objective.id] || [];
       return objectiveSessionIds.some(sessionId => activitySessionIds.has(sessionId));
     });
 
@@ -59,15 +72,13 @@ const WorkoutListScreen = () => {
     };
   });
 
-  activityGroups = activityGroups.filter(activityG => activityG.objectives.length > 0)
+  activityGroups = activityGroups.filter(activityG => activityG.objectives.length > 0);
 
   let objectiveGroups = objectives.map(objective => {
-    const objectiveSessionIds = new Set(objectivesSessionsMap[objective.id]);
+    const objectiveSessionIds = new Set(objectivesSessionsMap[objective.id] || []);
 
-    // Filtrer les activités qui partagent au moins une session
     const matchingActivities = activities.filter(activity => {
-      const activitySessionIds = activitiesSessionsMap[activity.id];
-      // Intersection
+      const activitySessionIds = activitiesSessionsMap[activity.id] || [];
       return activitySessionIds.some(sessionId => objectiveSessionIds.has(sessionId));
     });
 
@@ -76,88 +87,116 @@ const WorkoutListScreen = () => {
       activities: matchingActivities
     };
   });
-  objectiveGroups = objectiveGroups.filter(objG => objG.activities.length > 0)
+
+  objectiveGroups = objectiveGroups.filter(objG => objG.activities.length > 0);
 
   const renderActivityBlock = () => (
     <ScrollView contentContainerStyle={{paddingVertical: 20}}>
-      {activityGroups.map((activityG) => (
-        <View key={activityG.activity.id} style={styles.categorySection}>
-          <Text style={styles.categoryTitle}>{activityG.activity.name}</Text>
-
-          <FlatList
-            horizontal
-            data={activityG.objectives}
-            keyExtractor={(el) => el.id}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{paddingHorizontal: 20}}
-            ItemSeparatorComponent={() => <View style={{width: 12}}/>}
-            renderItem={({item: objective, index}) => {
-              const bgColors = ["#E9F3FF", "#DDF8EC", "#FFF4D6", "#FEE6E7"];
-              const randomColor = bgColors[index % bgColors.length];
-
-              return (
-                <TouchableOpacity
-                  style={[styles.simpleCard, {backgroundColor: randomColor}]}
-                  onPress={() =>
-                    navigation.navigate("WorkoutCategoryScreen", {
-                      tagName: activityG.activity.name,
-                      subTagName: objective.name,
-                      tagIds: [activityG.activity.documentId, objective.documentId],
-                    })
-                  }
-                >
-                  <Text style={styles.cardTitle}>{objective.name}</Text>
-                </TouchableOpacity>
-              );
-            }}
-          />
+      {activityGroups.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="folder-open-outline" size={64} color="#E0E6F0" />
+          <Text style={styles.emptyText}>Aucune activité disponible</Text>
+          <Text style={styles.emptySubtext}>Les séances seront bientôt disponibles</Text>
         </View>
-      ))}
+      ) : (
+        activityGroups.map((activityG) => (
+          <View key={activityG.activity.id} style={styles.categorySection}>
+            <Text style={styles.categoryTitle}>{activityG.activity.name}</Text>
+
+            <FlatList
+              horizontal
+              data={activityG.objectives}
+              keyExtractor={(el) => el.id?.toString() || Math.random().toString()}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{paddingHorizontal: 20}}
+              ItemSeparatorComponent={() => <View style={{width: 12}}/>}
+              renderItem={({item: objective, index}) => {
+                const bgColors = ["#E9F3FF", "#DDF8EC", "#FFF4D6", "#FEE6E7"];
+                const randomColor = bgColors[index % bgColors.length];
+
+                return (
+                  <TouchableOpacity
+                    style={[styles.simpleCard, {backgroundColor: randomColor}]}
+                    onPress={() =>
+                      navigation.navigate("WorkoutCategoryScreen", {
+                        tagName: activityG.activity.name,
+                        subTagName: objective.name,
+                        tagIds: [activityG.activity.documentId, objective.documentId],
+                      })
+                    }
+                  >
+                    <Text style={styles.cardTitle}>{objective.name}</Text>
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          </View>
+        ))
+      )}
+    </ScrollView>
+  );
+
+  const renderObjectiveBlock = () => (
+    <ScrollView contentContainerStyle={{paddingVertical: 20}}>
+      {objectiveGroups.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="folder-open-outline" size={64} color="#E0E6F0" />
+          <Text style={styles.emptyText}>Aucun objectif disponible</Text>
+          <Text style={styles.emptySubtext}>Les séances seront bientôt disponibles</Text>
+        </View>
+      ) : (
+        objectiveGroups.map((objectiveG) => (
+          <View key={objectiveG.objective.id} style={styles.categorySection}>
+            <Text style={styles.categoryTitle}>{objectiveG.objective.name}</Text>
+
+            <FlatList
+              horizontal
+              data={objectiveG.activities}
+              keyExtractor={(el) => el.id?.toString() || Math.random().toString()}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{paddingHorizontal: 20}}
+              ItemSeparatorComponent={() => <View style={{width: 12}}/>}
+              renderItem={({item: activity, index}) => {
+                const bgColors = ["#E9F3FF", "#DDF8EC", "#FFF4D6", "#FEE6E7"];
+                const randomColor = bgColors[index % bgColors.length];
+
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.simpleCard,
+                      {backgroundColor: randomColor},
+                    ]}
+                    onPress={() =>
+                      navigation.navigate("WorkoutCategoryScreen", {
+                        tagName: objectiveG.objective.name,
+                        subTagName: activity.name,
+                        tagIds: [activity.documentId, objectiveG.objective.documentId],
+                      })
+                    }
+                  >
+                    <Text style={styles.cardTitle}>{activity.name}</Text>
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          </View>
+        ))
+      )}
     </ScrollView>
   );
 
   const renderTabContent = () => {
-    if (activeTab === "objective") {
+    if (loading) {
       return (
-        <ScrollView contentContainerStyle={{paddingVertical: 20}}>
-          {objectiveGroups.map((objectiveG) => (
-            <View key={objectiveG.objective.id} style={styles.categorySection}>
-              <Text style={styles.categoryTitle}>{objectiveG.objective.name}</Text>
-
-              <FlatList
-                horizontal
-                data={objectiveG.activities}
-                keyExtractor={(el) => el.id}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{paddingHorizontal: 20}}
-                ItemSeparatorComponent={() => <View style={{width: 12}}/>}
-                renderItem={({item: activity, index}) => {
-                  const bgColors = ["#E9F3FF", "#DDF8EC", "#FFF4D6", "#FEE6E7"];
-                  const randomColor = bgColors[index % bgColors.length];
-
-                  return (
-                    <TouchableOpacity
-                      style={[
-                        styles.simpleCard,
-                        {backgroundColor: randomColor},
-                      ]}
-                      onPress={() =>
-                        navigation.navigate("WorkoutCategoryScreen", {
-                          tagName: objectiveG.objective.name,
-                          subTagName: activity.name,
-                          tagIds: [activity.documentId, objectiveG.objective.documentId],
-                        })
-                      }
-                    >
-                      <Text style={styles.cardTitle}>{activity.name}</Text>
-                    </TouchableOpacity>
-                  );
-                }}
-              />
-            </View>
-          ))}
-        </ScrollView>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2167b1" />
+          <Text style={styles.loadingText}>Chargement...</Text>
+        </View>
       );
+    }
+
+    if (activeTab === "objective") {
+      return renderObjectiveBlock();
     }
 
     return renderActivityBlock();
@@ -165,7 +204,6 @@ const WorkoutListScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.headerContainer}>
         <Text style={styles.headerTitle}>Séances</Text>
         <View style={styles.tabContainer}>
@@ -191,7 +229,6 @@ const WorkoutListScreen = () => {
         </View>
       </View>
 
-      {/* Content */}
       <View style={styles.contentWrapper}>{renderTabContent()}</View>
     </View>
   );
@@ -274,15 +311,32 @@ const styles = StyleSheet.create({
     color: "#1E283C",
     textAlign: "center",
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: "#8D95A7",
+  },
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingTop: 40,
+    paddingTop: 100,
   },
   emptyText: {
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: "600",
     color: "#8D95A7",
+    marginTop: 16,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: "#B0B9C8",
+    marginTop: 8,
   },
 });
 
