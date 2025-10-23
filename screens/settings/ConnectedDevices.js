@@ -283,22 +283,14 @@ const ConnectedDevices = ({ navigation }) => {
     }
 
     try {
-      // Vérifier si Google Fit est disponible sur l'appareil
-      const isAvailable = await GoogleFit.isAvailable();
-      if (!isAvailable) {
-        Alert.alert(
-          "Google Fit non disponible",
-          "Google Fit n'est pas installé sur cet appareil. Installez-le depuis le Play Store."
-        );
-        return;
-      }
-
-      // Autoriser l'accès
-      const result = await GoogleFit.authorize([
-        Scopes.FITNESS_ACTIVITY_READ,
-        Scopes.FITNESS_LOCATION_READ,
-        Scopes.FITNESS_BODY_READ,
-      ]);
+      // Autoriser l'accès directement avec la bonne syntaxe
+      const result = await GoogleFit.authorize({
+        scopes: [
+          Scopes.FITNESS_ACTIVITY_READ,
+          Scopes.FITNESS_LOCATION_READ,
+          Scopes.FITNESS_BODY_READ,
+        ],
+      });
 
       console.log("Google Fit authorization result:", result);
 
@@ -313,6 +305,14 @@ const ConnectedDevices = ({ navigation }) => {
       // Synchroniser les données
       await syncGoogleFitData();
       setConnectedDevices((prev) => ({ ...prev, google_fit: true }));
+
+      // Sauvegarder dans le profil utilisateur
+      const user = appContext.user;
+      const externalConnections = user.externalConnections || {};
+      externalConnections.google_fit = { connected: true };
+      await API.put("/users/me", { ...user, externalConnections });
+      appContext.setUser({ ...user, externalConnections });
+
       Alert.alert(
         "Google Fit connecté ✅",
         "Vos entraînements des 7 derniers jours ont été synchronisés."
