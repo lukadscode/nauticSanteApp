@@ -32,10 +32,9 @@ const HealthSyncSettings = () => {
   }, []);
 
   const loadSettings = async () => {
-    if (!user?.id) return;
     setLoading(true);
     try {
-      const data = await HealthSyncService.getSyncSettings(user.id);
+      const data = await HealthSyncService.getSyncSettings();
       setSettings(data);
     } catch (error) {
       console.error("Load settings error:", error);
@@ -45,9 +44,8 @@ const HealthSyncSettings = () => {
   };
 
   const loadRecentSessions = async () => {
-    if (!user?.id) return;
     try {
-      const sessions = await HealthSyncService.getRecentSyncSessions(user.id, 10);
+      const sessions = await HealthSyncService.getRecentSyncSessions(10);
       setRecentSessions(sessions);
     } catch (error) {
       console.error("Load sessions error:", error);
@@ -55,8 +53,7 @@ const HealthSyncSettings = () => {
   };
 
   const handleToggleAutoSync = async (value) => {
-    if (!user?.id) return;
-    const result = await HealthSyncService.updateSyncSettings(user.id, {
+    const result = await HealthSyncService.updateSyncSettings({
       auto_sync_enabled: value,
     });
     if (result.success) {
@@ -65,8 +62,6 @@ const HealthSyncSettings = () => {
   };
 
   const handleTogglePlatformSync = async (platform, value) => {
-    if (!user?.id) return;
-
     if (value) {
       const initialized =
         platform === "apple"
@@ -84,7 +79,7 @@ const HealthSyncSettings = () => {
 
     const field =
       platform === "apple" ? "apple_health_enabled" : "google_fit_enabled";
-    const result = await HealthSyncService.updateSyncSettings(user.id, {
+    const result = await HealthSyncService.updateSyncSettings({
       [field]: value,
     });
 
@@ -94,11 +89,9 @@ const HealthSyncSettings = () => {
   };
 
   const handleManualSync = async () => {
-    if (!user?.id) return;
-
     setSyncing(true);
     try {
-      const result = await HealthSyncService.syncHealthData(user.id);
+      const result = await HealthSyncService.syncHealthData();
 
       if (result.success) {
         Alert.alert(
@@ -131,13 +124,8 @@ const HealthSyncSettings = () => {
   };
 
   const handleConvertToTraining = async (sessionId) => {
-    if (!user?.id) return;
-
     try {
-      const result = await HealthSyncService.convertStepsToTraining(
-        sessionId,
-        user.id
-      );
+      const result = await HealthSyncService.convertStepsToTraining(sessionId);
 
       if (result.success) {
         Alert.alert(

@@ -2,7 +2,7 @@ import { Platform } from "react-native";
 import AppleHealthKit from "react-native-health";
 import GoogleFit, { Scopes } from "@ovalmoney/react-native-fitness";
 import moment from "moment";
-import { supabase } from "./supabase";
+import API from "./api";
 
 const STEPS_THRESHOLD = 6000;
 const WALKING_DURATION_PER_6000_STEPS = 30;
@@ -156,7 +156,7 @@ class HealthSyncService {
     }
   }
 
-  async syncHealthData(userId, date = new Date()) {
+  async syncHealthData(date = new Date()) {
     const source = Platform.OS === "ios" ? "apple_health" : "google_fit";
     const startDate = moment(date).startOf("day").toDate();
     const endDate = moment(date).endOf("day").toDate();
@@ -180,64 +180,60 @@ class HealthSyncService {
     }
 
     try {
-      const { data: existingSession } = await supabase
-        .from("health_sync_sessions")
-        .select("*")
-        .eq("user_id", userId)
-        .eq("source", source)
-        .eq("sync_date", moment(date).format("YYYY-MM-DD"))
-        .maybeSingle();
+      const response = await API.get(
+        `/health-sync-sessions?filters[sync_date][$eq]=${moment(date).format("YYYY-MM-DD")}&filters[source][$eq]=${source}`
+      );
+
+      const existingSession = response.data.data?.[0];
 
       if (existingSession) {
-        const { error } = await supabase
-          .from("health_sync_sessions")
-          .update({
-            steps: healthData.steps,
-            distance: healthData.distance,
-            calories: healthData.calories,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", existingSession.id);
-
-        if (error) throw error;
+        const { data } = await API.put(
+          `/health-sync-sessions/${existingSession.id}`,
+          {
+            data: {
+              steps: healthData.steps,
+              distance: healthData.distance,
+              calories: healthData.calories,
+            },
+          }
+        );
 
         return {
           success: true,
-          data: { ...existingSession, ...healthData },
+          data: { ...data.data, id: data.data.documentId },
           updated: true,
         };
       } else {
-        const { data, error } = await supabase
-          .from("health_sync_sessions")
-          .insert({
-            user_id: userId,
+        const { data } = await API.post("/health-sync-sessions", {
+          data: {
             source,
             steps: healthData.steps,
             distance: healthData.distance,
             calories: healthData.calories,
             sync_date: moment(date).format("YYYY-MM-DD"),
-          })
-          .select()
-          .single();
+            synced_to_training: false,
+          },
+        });
 
-        if (error) throw error;
-
-        return { success: true, data, updated: false };
+        return {
+          success: true,
+          data: { ...data.data, id: data.data.documentId },
+          updated: false,
+        };
       }
     } catch (error) {
-      console.error("Supabase sync error:", error);
+      console.error("Strapi sync error:", error);
       return { success: false, error: error.message };
     }
   }
 
-  async convertStepsToTraining(sessionId, userId) {
+  async convertStepsToTraining(sessionId) {
     try {
-      const { data: session } = await supabase
-        .from("health_sync_sessions")
-        .select("*")
-        .eq("id", sessionId)
-        .eq("user_id", userId)
-        .maybeSingle();
+      const { data: sessionResponse } = await API.get(
+        `/health-sync-sessions/${sessionId}`
+      );
+
+      const session = sessionResponse.data;
 
       if (!session || session.synced_to_training) {
         return { success: false, error: "Session not found or already synced" };
@@ -261,37 +257,21 @@ class HealthSyncService {
         state: "finished",
       };
 
-      const response = await fetch(
-        `${process.env.EXPO_PUBLIC_API_URL}/calendar-element/createMyActivityElement`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.EXPO_PUBLIC_API_TOKEN}`,
-          },
-          body: JSON.stringify(trainingData),
-        }
+      const response = await API.post(
+        "/calendar-element/createMyActivityElement",
+        trainingData
       );
 
-      if (!response.ok) {
-        throw new Error("Failed to create training");
-      }
-
-      const result = await response.json();
-
-      const { error } = await supabase
-        .from("health_sync_sessions")
-        .update({
+      await API.put(`/health-sync-sessions/${sessionId}`, {
+        data: {
           synced_to_training: true,
-          training_id: result.documentId || result.id,
-        })
-        .eq("id", sessionId);
-
-      if (error) throw error;
+          training_id: response.data.documentId || response.data.id,
+        },
+      });
 
       return {
         success: true,
-        training: result,
+        training: response.data,
         durationMinutes,
       };
     } catch (error) {
@@ -300,68 +280,62 @@ class HealthSyncService {
     }
   }
 
-  async getSyncSettings(userId) {
+  async getSyncSettings() {
     try {
-      const { data, error } = await supabase
-        .from("health_sync_settings")
-        .select("*")
-        .eq("user_id", userId)
-        .maybeSingle();
+      const { data } = await API.get("/health-sync-settings/me");
 
-      if (error && error.code !== "PGRST116") throw error;
-
-      if (!data) {
-        const { data: newSettings, error: insertError } = await supabase
-          .from("health_sync_settings")
-          .insert({
-            user_id: userId,
+      if (!data.data) {
+        const { data: newSettings } = await API.post("/health-sync-settings", {
+          data: {
             apple_health_enabled: Platform.OS === "ios",
             google_fit_enabled: Platform.OS === "android",
             auto_sync_enabled: true,
             steps_threshold: STEPS_THRESHOLD,
-          })
-          .select()
-          .single();
+          },
+        });
 
-        if (insertError) throw insertError;
-        return newSettings;
+        return newSettings.data;
       }
 
-      return data;
+      return data.data;
     } catch (error) {
       console.error("Get sync settings error:", error);
       return null;
     }
   }
 
-  async updateSyncSettings(userId, settings) {
+  async updateSyncSettings(settings) {
     try {
-      const { data, error } = await supabase
-        .from("health_sync_settings")
-        .update(settings)
-        .eq("user_id", userId)
-        .select()
-        .single();
+      const currentSettings = await this.getSyncSettings();
 
-      if (error) throw error;
-      return { success: true, data };
+      if (!currentSettings) {
+        const { data } = await API.post("/health-sync-settings", {
+          data: settings,
+        });
+        return { success: true, data: data.data };
+      }
+
+      const { data } = await API.put(
+        `/health-sync-settings/${currentSettings.documentId || currentSettings.id}`,
+        {
+          data: settings,
+        }
+      );
+
+      return { success: true, data: data.data };
     } catch (error) {
       console.error("Update sync settings error:", error);
       return { success: false, error: error.message };
     }
   }
 
-  async getRecentSyncSessions(userId, limit = 30) {
+  async getRecentSyncSessions(limit = 30) {
     try {
-      const { data, error } = await supabase
-        .from("health_sync_sessions")
-        .select("*")
-        .eq("user_id", userId)
-        .order("sync_date", { ascending: false })
-        .limit(limit);
+      const { data } = await API.get(
+        `/health-sync-sessions?sort=sync_date:desc&pagination[limit]=${limit}`
+      );
 
-      if (error) throw error;
-      return data || [];
+      return data.data || [];
     } catch (error) {
       console.error("Get recent sessions error:", error);
       return [];
