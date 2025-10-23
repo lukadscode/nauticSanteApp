@@ -74,11 +74,39 @@ if (!__DEV__) {
   });
 }
 
+const linking = {
+  prefixes: ['nauticsante://', 'https://app.nauticsante.com'],
+  config: {
+    screens: {
+      Onboarding: 'onboarding',
+      Login: 'login',
+      Register: 'register',
+      Main: {
+        screens: {
+          Profile: {
+            screens: {
+              ConnectedDevices: 'profile/connected-devices',
+              EditProfile: 'profile/edit',
+              NotificationSettings: 'profile/notifications',
+            }
+          },
+          Training: {
+            screens: {
+              TrainingHistory: 'training/history',
+              TrainingHistoryDetail: 'training/history/:id',
+            }
+          }
+        }
+      }
+    }
+  }
+};
+
 export default function App() {
   return (
     <ApplicationProvider {...eva} theme={eva.light}>
       <AuthProvider>
-        <NavigationContainer>
+        <NavigationContainer linking={linking}>
           <Stack.Navigator>
             <Stack.Screen
               name="Onboarding"
