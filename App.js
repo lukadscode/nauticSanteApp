@@ -37,6 +37,7 @@ import ConnectedDevices from "./screens/settings/ConnectedDevices";
 import WebViewAuth from "./screens/settings/WebViewAuth";
 import TrainingHistoryScreen from "./screens/TrainingHistoryScreen";
 import TrainingHistoryDetailScreen from "./screens/TrainingHistoryDetailScreen";
+import HealthSyncSettings from "./screens/settings/HealthSyncSettings";
 
 // Import Bottom Tabs
 import BottomTabs from "./navigation/BottomTabs";
@@ -226,6 +227,11 @@ export default function App() {
             <Stack.Screen
               name="TrainingHistoryDetail"
               component={TrainingHistoryDetailScreen}
+              options={{headerShown: false}}
+            />
+            <Stack.Screen
+              name="HealthSyncSettings"
+              component={HealthSyncSettings}
               options={{headerShown: false}}
             />
             <Stack.Screen
