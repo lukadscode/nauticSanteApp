@@ -14,9 +14,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthContext } from "../../context/AuthContext";
 import API from "../../services/api";
-// ✅ Import correct pour ta version (v1.x)
-import * as AppleHealthKit from "react-native-health";
-import GoogleFit, { Scopes } from "react-native-google-fit";
+import AppleHealthKit from "react-native-health";
+import GoogleFit, { Scopes } from "@ovalmoney/react-native-fitness";
+import moment from "moment";
 
 const DEVICES = [
   {
@@ -38,14 +38,14 @@ const DEVICES = [
     name: "Apple Health",
     icon: "heart-outline",
     color: "#FF2D55",
-    description: "Accédez à vos données de santé (iPhone)",
+    description: "Synchronisation automatique de tous vos entraînements (iPhone)",
   },
   {
     id: "google_fit",
     name: "Google Fit",
     icon: "fitness-outline",
     color: "#4285F4",
-    description: "Synchronisez vos données d'activité (Android)",
+    description: "Synchronisation automatique de tous vos entraînements (Android)",
   },
 ];
 
@@ -121,16 +121,8 @@ const ConnectedDevices = ({ navigation }) => {
         }
       }
     } catch (error) {
-<<<<<<< HEAD
       console.error(`Erreur connexion ${deviceId}:`, error);
       Alert.alert("Erreur", "Impossible de se connecter à cet appareil.");
-=======
-      console.error(`Erreur connexion ${deviceId}:`, error.response.data);
-      Alert.alert(
-        "Erreur",
-        "Impossible de se connecter à cet appareil pour le moment."
-      );
->>>>>>> a8b100478ee3aeede533ef2146eb7c3e3f772438
     } finally {
       setToggling((prev) => ({ ...prev, [deviceId]: false }));
     }
@@ -173,7 +165,6 @@ const ConnectedDevices = ({ navigation }) => {
     );
   };
 
-  // 🍎 Apple Health — version 1.x correcte
   const connectAppleHealth = async () => {
     if (Platform.OS !== "ios") {
       Alert.alert("Disponible uniquement sur iPhone");
@@ -183,36 +174,104 @@ const ConnectedDevices = ({ navigation }) => {
     const PERMS = AppleHealthKit.Constants.Permissions;
     const options = {
       permissions: {
-        read: [PERMS.StepCount, PERMS.HeartRate, PERMS.Workout],
+        read: [
+          PERMS.Steps,
+          PERMS.DistanceWalkingRunning,
+          PERMS.ActiveEnergyBurned,
+          PERMS.DistanceCycling,
+          PERMS.DistanceSwimming,
+          PERMS.Workout,
+        ],
         write: [],
       },
     };
 
-    AppleHealthKit.initHealthKit(options, (err) => {
+    AppleHealthKit.initHealthKit(options, async (err) => {
       if (err) {
         console.error("Erreur init Apple Health:", err);
-        Alert.alert("Erreur", "Impossible d’accéder à Apple Health.");
+        Alert.alert("Erreur", "Impossible d'accéder à Apple Health.");
         return;
       }
 
-      const today = new Date().toISOString();
-      AppleHealthKit.getStepCount({ date: today }, async (error, result) => {
-        if (error) {
-          Alert.alert("Erreur lecture HealthKit", error.message);
-          return;
+      try {
+        await syncAppleHealthData();
+        setConnectedDevices((prev) => ({ ...prev, apple_health: true }));
+        Alert.alert(
+          "Apple Health connecté ✅",
+          "Vos entraînements des 7 derniers jours ont été synchronisés."
+        );
+      } catch (apiErr) {
+        console.error(apiErr);
+        Alert.alert("Erreur", "Impossible de synchroniser les données.");
+      }
+    });
+  };
+
+  const syncAppleHealthData = async () => {
+    const startDate = moment().subtract(7, "days").startOf("day").toDate();
+    const endDate = moment().endOf("day").toDate();
+
+    const options = {
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+    };
+
+    return new Promise((resolve, reject) => {
+      AppleHealthKit.getSamples(options, async (err, workouts) => {
+        if (err) {
+          console.error("Erreur récupération workouts:", err);
         }
 
-        try {
-          await API.post("/user/health-data", { steps: result.value });
-          setConnectedDevices((prev) => ({ ...prev, apple_health: true }));
-          Alert.alert(
-            "Apple Health connecté ✅",
-            `Pas du jour : ${result.value}`
-          );
-        } catch (apiErr) {
-          console.error(apiErr);
-          Alert.alert("Erreur", "Impossible d’enregistrer les données.");
-        }
+        AppleHealthKit.getDailyStepCountSamples(options, async (err, stepsData) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+
+          const groupedByDate = {};
+
+          if (stepsData && stepsData.length > 0) {
+            stepsData.forEach((item) => {
+              const date = moment(item.startDate).format("YYYY-MM-DD");
+              if (!groupedByDate[date]) {
+                groupedByDate[date] = { steps: 0, distance: 0, calories: 0 };
+              }
+              groupedByDate[date].steps += item.value;
+            });
+          }
+
+          AppleHealthKit.getDailyDistanceWalkingRunningSamples(options, (err, distanceData) => {
+            if (!err && distanceData && distanceData.length > 0) {
+              distanceData.forEach((item) => {
+                const date = moment(item.startDate).format("YYYY-MM-DD");
+                if (!groupedByDate[date]) {
+                  groupedByDate[date] = { steps: 0, distance: 0, calories: 0 };
+                }
+                groupedByDate[date].distance += item.value;
+              });
+            }
+
+            AppleHealthKit.getActiveEnergyBurned(options, async (err, caloriesData) => {
+              if (!err && caloriesData && caloriesData.length > 0) {
+                caloriesData.forEach((item) => {
+                  const date = moment(item.startDate).format("YYYY-MM-DD");
+                  if (!groupedByDate[date]) {
+                    groupedByDate[date] = { steps: 0, distance: 0, calories: 0 };
+                  }
+                  groupedByDate[date].calories += item.value;
+                });
+              }
+
+              for (const [date, data] of Object.entries(groupedByDate)) {
+                if (data.steps >= 6000) {
+                  await createWalkingTraining(date, data.steps, data.distance, data.calories);
+                }
+              }
+
+              resolve();
+            });
+          });
+        });
       });
     });
   };
@@ -223,36 +282,100 @@ const ConnectedDevices = ({ navigation }) => {
       return;
     }
 
-    const options = {
-      scopes: [Scopes.FITNESS_ACTIVITY_READ, Scopes.FITNESS_BODY_READ],
-    };
+    try {
+      const result = await GoogleFit.authorize([
+        Scopes.FITNESS_ACTIVITY_READ,
+        Scopes.FITNESS_LOCATION_READ,
+      ]);
 
-    GoogleFit.authorize(options)
-      .then(async (res) => {
-        if (!res.success) {
-          Alert.alert("Erreur", "Connexion Google Fit refusée.");
-          return;
-        }
+      if (!result.success) {
+        Alert.alert("Erreur", "Connexion Google Fit refusée.");
+        return;
+      }
 
-        const end = new Date();
-        const start = new Date();
-        start.setHours(0, 0, 0, 0);
+      await syncGoogleFitData();
+      setConnectedDevices((prev) => ({ ...prev, google_fit: true }));
+      Alert.alert(
+        "Google Fit connecté ✅",
+        "Vos entraînements des 7 derniers jours ont été synchronisés."
+      );
+    } catch (err) {
+      console.error("Erreur Google Fit:", err);
+      Alert.alert("Erreur", "Impossible de se connecter à Google Fit.");
+    }
+  };
 
-        const data = await GoogleFit.getDailyStepCountSamples({
-          startDate: start.toISOString(),
-          endDate: end.toISOString(),
+  const syncGoogleFitData = async () => {
+    const startDate = moment().subtract(7, "days").startOf("day").toDate();
+    const endDate = moment().endOf("day").toDate();
+
+    try {
+      const stepsData = await GoogleFit.getDailySteps(startDate, endDate);
+      const distanceData = await GoogleFit.getDailyDistanceSamples(startDate, endDate);
+      const caloriesData = await GoogleFit.getDailyCalorieSamples(startDate, endDate);
+
+      const groupedByDate = {};
+
+      if (stepsData && stepsData.length > 0) {
+        stepsData.forEach((day) => {
+          const date = moment(day.date).format("YYYY-MM-DD");
+          const daySteps = day.steps.reduce((sum, step) => sum + step.value, 0);
+          if (!groupedByDate[date]) {
+            groupedByDate[date] = { steps: 0, distance: 0, calories: 0 };
+          }
+          groupedByDate[date].steps += daySteps;
         });
+      }
 
-        const todaySteps = data?.[0]?.steps?.[0]?.value || 0;
-        await API.post("/user/health-data", { steps: todaySteps });
+      if (distanceData && distanceData.length > 0) {
+        distanceData.forEach((item) => {
+          const date = moment(item.date).format("YYYY-MM-DD");
+          if (!groupedByDate[date]) {
+            groupedByDate[date] = { steps: 0, distance: 0, calories: 0 };
+          }
+          groupedByDate[date].distance += item.distance || 0;
+        });
+      }
 
-        setConnectedDevices((prev) => ({ ...prev, google_fit: true }));
-        Alert.alert("Google Fit connecté ✅", `Pas du jour : ${todaySteps}`);
-      })
-      .catch((err) => {
-        console.error("Erreur Google Fit:", err);
-        Alert.alert("Erreur", "Impossible de se connecter à Google Fit.");
-      });
+      if (caloriesData && caloriesData.length > 0) {
+        caloriesData.forEach((item) => {
+          const date = moment(item.date).format("YYYY-MM-DD");
+          if (!groupedByDate[date]) {
+            groupedByDate[date] = { steps: 0, distance: 0, calories: 0 };
+          }
+          groupedByDate[date].calories += item.calorie || 0;
+        });
+      }
+
+      for (const [date, data] of Object.entries(groupedByDate)) {
+        if (data.steps >= 6000) {
+          await createWalkingTraining(date, data.steps, data.distance, data.calories);
+        }
+      }
+    } catch (error) {
+      console.error("Google Fit data fetch error:", error);
+      throw error;
+    }
+  };
+
+  const createWalkingTraining = async (date, steps, distance, calories) => {
+    try {
+      const multiplier = Math.floor(steps / 6000);
+      const durationMinutes = 30 * multiplier;
+
+      const trainingData = {
+        date: date,
+        realDuration: durationMinutes * 60,
+        distance: distance / 1000,
+        mood: 1,
+        state: "finished",
+      };
+
+      await API.post("/calendar-element/createMyActivityElement", trainingData);
+      console.log(`Entraînement créé pour ${date}: ${durationMinutes} min, ${steps} pas`);
+    } catch (error) {
+      console.error("Erreur création entraînement:", error);
+    }
   };
 
   return (
