@@ -283,16 +283,34 @@ const ConnectedDevices = ({ navigation }) => {
     }
 
     try {
-      const result = await GoogleFit.authorize([
-        Scopes.FITNESS_ACTIVITY_READ,
-        Scopes.FITNESS_LOCATION_READ,
-      ]);
-
-      if (!result.success) {
-        Alert.alert("Erreur", "Connexion Google Fit refusée.");
+      // Vérifier si Google Fit est disponible sur l'appareil
+      const isAvailable = await GoogleFit.isAvailable();
+      if (!isAvailable) {
+        Alert.alert(
+          "Google Fit non disponible",
+          "Google Fit n'est pas installé sur cet appareil. Installez-le depuis le Play Store."
+        );
         return;
       }
 
+      // Autoriser l'accès
+      const result = await GoogleFit.authorize([
+        Scopes.FITNESS_ACTIVITY_READ,
+        Scopes.FITNESS_LOCATION_READ,
+        Scopes.FITNESS_BODY_READ,
+      ]);
+
+      console.log("Google Fit authorization result:", result);
+
+      if (!result.success) {
+        Alert.alert(
+          "Connexion refusée",
+          "Vous devez autoriser l'accès à Google Fit pour synchroniser vos données."
+        );
+        return;
+      }
+
+      // Synchroniser les données
       await syncGoogleFitData();
       setConnectedDevices((prev) => ({ ...prev, google_fit: true }));
       Alert.alert(
@@ -300,8 +318,11 @@ const ConnectedDevices = ({ navigation }) => {
         "Vos entraînements des 7 derniers jours ont été synchronisés."
       );
     } catch (err) {
-      console.error("Erreur Google Fit:", err);
-      Alert.alert("Erreur", "Impossible de se connecter à Google Fit.");
+      console.error("Erreur Google Fit détaillée:", err);
+      Alert.alert(
+        "Erreur de connexion",
+        `Impossible de se connecter à Google Fit.\n\nDétails: ${err.message || "Erreur inconnue"}`
+      );
     }
   };
 

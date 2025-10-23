@@ -2,7 +2,7 @@
   "expo": {
     "name": "Nautic'Santé",
     "slug": "nautic-sante-app",
-    "version": "1.0.8",
+    "version": "1.0.10",
     "orientation": "portrait",
     "icon": "./assets/logos/logo_app_ns.png",
     "splash": {
@@ -17,22 +17,34 @@
       "fallbackToCacheTimeout": 0,
       "url": "https://u.expo.dev/0f5e0d31-8eab-446f-9298-38bea28b5222"
     },
+    "scheme": "nauticsante",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.undersolutions.nauticsante",
-      "buildNumber": "1.0.8",
+      "buildNumber": "1.0.10",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Cette application peut utiliser le micro pour certaines fonctionnalités audio.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSHealthShareUsageDescription": "Nautic'Santé a besoin d'accéder à vos données de santé pour synchroniser automatiquement vos entraînements (pas, distance, calories).",
+        "NSHealthUpdateUsageDescription": "Nautic'Santé a besoin de mettre à jour vos données de santé."
+      },
+      "entitlements": {
+        "com.apple.developer.healthkit": true,
+        "com.apple.developer.healthkit.access": []
       }
     },
     "android": {
       "package": "com.undersolutions.nauticsante",
-      "versionCode": 1,
+      "versionCode": 2,
       "adaptiveIcon": {
         "foregroundImage": "./assets/logos/logo_app_ns.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "permissions": [
+        "ACTIVITY_RECOGNITION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
     },
     "plugins": [
       [
@@ -41,7 +53,16 @@
           "icon": "./assets/logos/logo_app_ns.png",
           "color": "#ffffff"
         }
-      ]
+      ],
+      "expo-font",
+      "expo-audio",
+      [
+        "react-native-health",
+        {
+          "healthSharePermission": "Nautic'Santé a besoin d'accéder à vos données de santé pour synchroniser automatiquement vos entraînements."
+        }
+      ],
+      "@ovalmoney/react-native-fitness"
     ],
     "userInterfaceStyle": "light",
     "extra": {
