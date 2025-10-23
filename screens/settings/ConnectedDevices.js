@@ -14,9 +14,25 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthContext } from "../../context/AuthContext";
 import API from "../../services/api";
-import AppleHealthKit from "react-native-health";
-import GoogleFit, { Scopes } from "@ovalmoney/react-native-fitness";
 import moment from "moment";
+
+let AppleHealthKit = null;
+let GoogleFit = null;
+let Scopes = null;
+
+try {
+  AppleHealthKit = require("react-native-health").default;
+} catch (e) {
+  console.log("Apple Health not available");
+}
+
+try {
+  const googleFitModule = require("@ovalmoney/react-native-fitness");
+  GoogleFit = googleFitModule.default;
+  Scopes = googleFitModule.Scopes;
+} catch (e) {
+  console.log("Google Fit not available");
+}
 
 const DEVICES = [
   {
@@ -171,6 +187,14 @@ const ConnectedDevices = ({ navigation }) => {
       return;
     }
 
+    if (!AppleHealthKit) {
+      Alert.alert(
+        "Module non disponible",
+        "Apple Health nécessite un build natif. Installez l'application depuis TestFlight ou l'App Store."
+      );
+      return;
+    }
+
     const PERMS = AppleHealthKit.Constants.Permissions;
     const options = {
       permissions: {
@@ -279,6 +303,14 @@ const ConnectedDevices = ({ navigation }) => {
   const connectGoogleFit = async () => {
     if (Platform.OS !== "android") {
       Alert.alert("Disponible uniquement sur Android");
+      return;
+    }
+
+    if (!GoogleFit || !Scopes) {
+      Alert.alert(
+        "Module non disponible",
+        "Google Fit nécessite un build natif. Créez un build avec EAS pour utiliser cette fonctionnalité."
+      );
       return;
     }
 
