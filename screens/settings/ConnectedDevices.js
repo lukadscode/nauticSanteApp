@@ -406,39 +406,20 @@ const ConnectedDevices = ({ navigation }) => {
         ];
 
     try {
-      // Autoriser l'accès avec le Client ID explicitement
-      // Le Client ID est aussi configuré dans app.json via le plugin pour les builds natifs
-      const result = await GoogleFit.authorize({
-        scopes: FITNESS_SCOPES,
-        clientId: GOOGLE_FIT_CLIENT_ID, // Passer le Client ID explicitement
-      });
+      // Le package @ovalmoney/react-native-fitness n'a pas de méthode authorize()
+      // L'authentification se fait automatiquement lors du premier appel de données
+      // On essaie d'appeler getSteps qui devrait déclencher l'authentification OAuth si nécessaire
 
-      console.log("Google Fit authorization result:", result);
+      console.log("Tentative de connexion à Google Fit...");
+      const startDate = moment().subtract(1, "day").startOf("day").toDate();
+      const endDate = moment().endOf("day").toDate();
 
-      if (!result.success) {
-        let errorMessage =
-          "Vous devez autoriser l'accès à Google Fit pour synchroniser vos données.";
+      // Essayer d'obtenir des données - cela devrait déclencher l'authentification automatiquement
+      const testData = await GoogleFit.getSteps(startDate, endDate);
+      console.log("Google Fit - données obtenues avec succès:", testData);
 
-        // Messages d'erreur plus spécifiques
-        if (
-          result.message?.includes("OAuth") ||
-          result.message?.includes("configuration")
-        ) {
-          errorMessage =
-            "La configuration OAuth Google Fit n'est pas correcte. Veuillez contacter le support technique.";
-        } else if (
-          result.message?.includes("permission") ||
-          result.message?.includes("denied")
-        ) {
-          errorMessage =
-            "L'accès à Google Fit a été refusé. Veuillez autoriser l'accès dans les paramètres de l'application Google Fit.";
-        }
-
-        Alert.alert("Connexion refusée", errorMessage);
-        return;
-      }
-
-      // Synchroniser les données
+      // Si on arrive ici, l'authentification a réussi
+      // Synchroniser les données des 7 derniers jours
       await syncGoogleFitData();
       setConnectedDevices((prev) => ({ ...prev, google_fit: true }));
 
@@ -455,17 +436,17 @@ const ConnectedDevices = ({ navigation }) => {
       );
     } catch (err) {
       console.error("Erreur Google Fit détaillée:", err);
-      let errorMessage = `Impossible de se connecter à Google Fit.\n\n${
-        err.message || "Erreur inconnue"
-      }`;
+      let errorMessage = "Impossible de se connecter à Google Fit.";
 
       // Messages d'erreur plus spécifiques selon le type d'erreur
       if (
         err.message?.includes("OAuth") ||
-        err.message?.includes("configuration")
+        err.message?.includes("configuration") ||
+        err.message?.includes("sign_in") ||
+        err.message?.includes("SIGN_IN_REQUIRED")
       ) {
         errorMessage =
-          "La configuration OAuth Google Fit n'est pas correcte. Vérifiez que le SHA-1 fingerprint est configuré dans Google Cloud Console et que le package name correspond.";
+          "La configuration OAuth Google Fit n'est pas correcte. Vérifiez que le SHA-1 fingerprint est configuré dans Google Cloud Console et que le package name correspond à : com.undersolutions.nauticsante";
       } else if (
         err.message?.includes("network") ||
         err.message?.includes("connection")
@@ -474,10 +455,16 @@ const ConnectedDevices = ({ navigation }) => {
           "Problème de connexion réseau. Veuillez vérifier votre connexion internet.";
       } else if (
         err.message?.includes("permission") ||
-        err.message?.includes("denied")
+        err.message?.includes("denied") ||
+        err.message?.includes("cancel") ||
+        err.message?.includes("USER_CANCELED")
       ) {
         errorMessage =
-          "L'accès à Google Fit a été refusé. Veuillez autoriser l'accès dans les paramètres de l'application Google Fit ou réessayer.";
+          "L'accès à Google Fit a été refusé ou annulé. Veuillez autoriser l'accès et réessayer.";
+      } else {
+        errorMessage = `Impossible de se connecter à Google Fit.\n\n${
+          err.message || "Erreur inconnue"
+        }`;
       }
 
       Alert.alert("Erreur de connexion", errorMessage);
