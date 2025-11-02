@@ -23,9 +23,16 @@ let GoogleFit = null;
 let Scopes = null;
 
 try {
-  AppleHealthKit = require("react-native-health").default;
+  const healthModule = require("react-native-health");
+  AppleHealthKit = healthModule.default || healthModule;
+  console.log("Apple Health module loaded successfully", {
+    hasAppleHealthKit: !!AppleHealthKit,
+    moduleKeys: Object.keys(healthModule),
+    platform: Platform.OS,
+  });
 } catch (e) {
-  console.log("Apple Health not available");
+  console.error("Apple Health not available:", e);
+  AppleHealthKit = null;
 }
 
 try {
@@ -260,15 +267,34 @@ const ConnectedDevices = ({ navigation }) => {
     }
 
     if (!AppleHealthKit) {
-      Alert.alert(
-        "Module non disponible",
-        "Apple Health nécessite un build natif avec les modules natifs compilés.\n\n" +
-          "Vous utilisez probablement Expo Go, qui ne supporte pas les modules natifs.\n\n" +
-          "Pour utiliser Apple Health :\n" +
-          "1. Créez un build natif avec : eas build --profile development --platform ios\n" +
-          "2. Installez le build sur votre iPhone\n" +
-          "3. Réessayez de connecter Apple Health"
-      );
+      // Vérifier si c'est un simulateur (HealthKit ne fonctionne pas sur simulateur)
+      const isSimulator =
+        Platform.OS === "ios" &&
+        Platform.isPad === false &&
+        Platform.isTV === false;
+      let message =
+        "Apple Health nécessite un build natif avec les modules natifs compilés.\n\n";
+
+      if (isSimulator) {
+        message +=
+          "⚠️ Vous êtes sur un simulateur iOS. Apple Health ne fonctionne PAS sur les simulateurs.\n\n";
+        message += "Pour utiliser Apple Health :\n";
+        message += "1. Testez sur un iPhone physique\n";
+        message +=
+          "2. Créez un build natif avec : eas build --profile development --platform ios\n";
+        message += "3. Installez le build sur votre iPhone physique\n";
+        message += "4. Réessayez de connecter Apple Health";
+      } else {
+        message +=
+          "Vous utilisez probablement Expo Go, qui ne supporte pas les modules natifs.\n\n";
+        message += "Pour utiliser Apple Health :\n";
+        message +=
+          "1. Créez un build natif avec : eas build --profile development --platform ios\n";
+        message += "2. Installez le build sur votre iPhone\n";
+        message += "3. Réessayez de connecter Apple Health";
+      }
+
+      Alert.alert("Module non disponible", message);
       return;
     }
 
