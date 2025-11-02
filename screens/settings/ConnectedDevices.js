@@ -28,7 +28,11 @@ try {
   console.log("Apple Health module loaded successfully", {
     hasAppleHealthKit: !!AppleHealthKit,
     moduleKeys: Object.keys(healthModule),
+    appleHealthKitKeys: AppleHealthKit ? Object.keys(AppleHealthKit) : [],
     platform: Platform.OS,
+    hasInitHealthKit: AppleHealthKit?.initHealthKit ? "YES" : "NO",
+    hasIsAvailable: AppleHealthKit?.isAvailable ? "YES" : "NO",
+    hasAuthorize: AppleHealthKit?.authorize ? "YES" : "NO",
   });
 } catch (e) {
   console.error("Apple Health not available:", e);
@@ -298,108 +302,158 @@ const ConnectedDevices = ({ navigation }) => {
       return;
     }
 
-    const PERMS = AppleHealthKit.Constants.Permissions;
-    const options = {
-      permissions: {
-        read: [
-          PERMS.Steps,
-          PERMS.DistanceWalkingRunning,
-          PERMS.ActiveEnergyBurned,
-          PERMS.DistanceCycling,
-          PERMS.DistanceSwimming,
-          PERMS.Workout,
-        ],
-        write: [],
-      },
-    };
+    // Vérifier les méthodes disponibles
+    console.log("AppleHealthKit methods:", {
+      hasInitHealthKit: typeof AppleHealthKit.initHealthKit,
+      hasIsAvailable: typeof AppleHealthKit.isAvailable,
+      hasAuthorize: typeof AppleHealthKit.authorize,
+      allKeys: Object.keys(AppleHealthKit),
+    });
 
-    // initHealthKit() demande automatiquement les permissions si nécessaire
-    // iOS affichera automatiquement le dialogue de permissions natif
-    console.log(
-      "Initialisation de HealthKit - les permissions seront demandées automatiquement..."
-    );
-
-    // Afficher un message informatif à l'utilisateur
-    Alert.alert(
-      "Autorisation requise",
-      "iOS va vous demander d'autoriser l'accès à Apple Health. Veuillez accepter toutes les permissions pour que la synchronisation fonctionne correctement.",
-      [{ text: "OK" }]
-    );
-
-    AppleHealthKit.initHealthKit(options, async (err) => {
-      if (err) {
-        console.error("Erreur init Apple Health:", err);
-        let errorMessage = "Impossible d'accéder à Apple Health.";
-
-        // Messages d'erreur plus spécifiques
-        if (
-          err.message?.includes("permission") ||
-          err.message?.includes("denied") ||
-          err.code === 3 // Code d'erreur pour permissions refusées
-        ) {
-          errorMessage =
-            "L'accès à Apple Health a été refusé. Veuillez autoriser l'accès dans Réglages > Confidentialité > Santé > Nautic'Santé.\n\n" +
-            "Activez toutes les catégories nécessaires : Pas, Distance, Calories, Entraînements.";
-        } else if (
-          err.message?.includes("not available") ||
-          err.message?.includes("not supported")
-        ) {
-          errorMessage =
-            "Apple Health n'est pas disponible sur cet appareil. Veuillez utiliser un iPhone avec iOS 8.0 ou supérieur.";
-        } else if (err.code === 2) {
-          errorMessage =
-            "Les permissions Apple Health ne sont pas configurées correctement. Veuillez réinstaller l'application.";
+    // Vérifier si HealthKit est disponible
+    if (AppleHealthKit.isAvailable) {
+      AppleHealthKit.isAvailable((err, available) => {
+        if (err || !available) {
+          Alert.alert(
+            "Apple Health non disponible",
+            "HealthKit n'est pas disponible sur cet appareil."
+          );
+          return;
         }
+        // Continuer avec l'initialisation
+        initializeHealthKit();
+      });
+    } else {
+      // Si isAvailable n'existe pas, essayer directement initHealthKit
+      initializeHealthKit();
+    }
 
-        Alert.alert("Erreur de connexion", errorMessage);
+    function initializeHealthKit() {
+      // Vérifier si Constants existe
+      if (!AppleHealthKit.Constants || !AppleHealthKit.Constants.Permissions) {
+        console.error("AppleHealthKit.Constants.Permissions not available");
+        Alert.alert(
+          "Erreur de configuration",
+          "Le module Apple Health n'est pas correctement configuré. Vérifiez que le build natif a été créé avec les permissions HealthKit."
+        );
         return;
       }
 
-      try {
-        await syncAppleHealthData();
+      const PERMS = AppleHealthKit.Constants.Permissions;
+      const options = {
+        permissions: {
+          read: [
+            PERMS.Steps,
+            PERMS.DistanceWalkingRunning,
+            PERMS.ActiveEnergyBurned,
+            PERMS.DistanceCycling,
+            PERMS.DistanceSwimming,
+            PERMS.Workout,
+          ],
+          write: [],
+        },
+      };
 
-        // Sauvegarder dans le profil utilisateur AVANT de mettre à jour l'état UI
-        const user = appContext.user;
-        const externalConnections = user.externalConnections || {};
-        externalConnections.apple_health = { connected: true };
+      // Vérifier si initHealthKit existe
+      if (!AppleHealthKit.initHealthKit) {
+        console.error("AppleHealthKit.initHealthKit is not a function", {
+          availableMethods: Object.keys(AppleHealthKit),
+        });
+        Alert.alert(
+          "Erreur de module",
+          "La méthode initHealthKit n'est pas disponible. Vérifiez que le module react-native-health est correctement lié au build natif."
+        );
+        return;
+      }
 
-        // Utiliser /user/me comme dans les autres fichiers
-        const modifiedUser = {
-          ...user,
-          externalConnections: externalConnections,
-        };
+      // initHealthKit() demande automatiquement les permissions si nécessaire
+      // iOS affichera automatiquement le dialogue de permissions natif
+      console.log(
+        "Initialisation de HealthKit - les permissions seront demandées automatiquement..."
+      );
+
+      // Afficher un message informatif à l'utilisateur
+      Alert.alert(
+        "Autorisation requise",
+        "iOS va vous demander d'autoriser l'accès à Apple Health. Veuillez accepter toutes les permissions pour que la synchronisation fonctionne correctement.",
+        [{ text: "OK" }]
+      );
+
+      AppleHealthKit.initHealthKit(options, async (err) => {
+        if (err) {
+          console.error("Erreur init Apple Health:", err);
+          let errorMessage = "Impossible d'accéder à Apple Health.";
+
+          // Messages d'erreur plus spécifiques
+          if (
+            err.message?.includes("permission") ||
+            err.message?.includes("denied") ||
+            err.code === 3 // Code d'erreur pour permissions refusées
+          ) {
+            errorMessage =
+              "L'accès à Apple Health a été refusé. Veuillez autoriser l'accès dans Réglages > Confidentialité > Santé > Nautic'Santé.\n\n" +
+              "Activez toutes les catégories nécessaires : Pas, Distance, Calories, Entraînements.";
+          } else if (
+            err.message?.includes("not available") ||
+            err.message?.includes("not supported")
+          ) {
+            errorMessage =
+              "Apple Health n'est pas disponible sur cet appareil. Veuillez utiliser un iPhone avec iOS 8.0 ou supérieur.";
+          } else if (err.code === 2) {
+            errorMessage =
+              "Les permissions Apple Health ne sont pas configurées correctement. Veuillez réinstaller l'application.";
+          }
+
+          Alert.alert("Erreur de connexion", errorMessage);
+          return;
+        }
 
         try {
-          const res = (await API.put("/user/me", modifiedUser))?.data;
-          if (res) {
-            await appContext.setUser(res);
-            // Mettre à jour l'état après sauvegarde réussie
-            setConnectedDevices((prev) => ({ ...prev, apple_health: true }));
-          } else {
+          await syncAppleHealthData();
+
+          // Sauvegarder dans le profil utilisateur AVANT de mettre à jour l'état UI
+          const user = appContext.user;
+          const externalConnections = user.externalConnections || {};
+          externalConnections.apple_health = { connected: true };
+
+          // Utiliser /user/me comme dans les autres fichiers
+          const modifiedUser = {
+            ...user,
+            externalConnections: externalConnections,
+          };
+
+          try {
+            const res = (await API.put("/user/me", modifiedUser))?.data;
+            if (res) {
+              await appContext.setUser(res);
+              // Mettre à jour l'état après sauvegarde réussie
+              setConnectedDevices((prev) => ({ ...prev, apple_health: true }));
+            } else {
+              await appContext.setUser({ ...user, externalConnections });
+              setConnectedDevices((prev) => ({ ...prev, apple_health: true }));
+            }
+          } catch (apiError) {
+            console.error("Erreur sauvegarde profil Apple Health:", apiError);
+            // Mettre à jour localement quand même pour que le switch reste activé
             await appContext.setUser({ ...user, externalConnections });
             setConnectedDevices((prev) => ({ ...prev, apple_health: true }));
           }
-        } catch (apiError) {
-          console.error("Erreur sauvegarde profil Apple Health:", apiError);
-          // Mettre à jour localement quand même pour que le switch reste activé
-          await appContext.setUser({ ...user, externalConnections });
-          setConnectedDevices((prev) => ({ ...prev, apple_health: true }));
-        }
 
-        Alert.alert(
-          "Apple Health connecté ✅",
-          "Vos entraînements des 7 derniers jours ont été synchronisés."
-        );
-      } catch (apiErr) {
-        console.error("Erreur synchronisation Apple Health:", apiErr);
-        Alert.alert(
-          "Erreur de synchronisation",
-          `Impossible de synchroniser les données.\n\n${
-            apiErr.message || "Erreur inconnue"
-          }`
-        );
-      }
-    });
+          Alert.alert(
+            "Apple Health connecté ✅",
+            "Vos entraînements des 7 derniers jours ont été synchronisés."
+          );
+        } catch (apiErr) {
+          console.error("Erreur synchronisation Apple Health:", apiErr);
+          Alert.alert(
+            "Erreur de synchronisation",
+            `Impossible de synchroniser les données.\n\n${
+              apiErr.message || "Erreur inconnue"
+            }`
+          );
+        }
+      });
+    } // Fin de initializeHealthKit
   };
 
   const syncAppleHealthData = async () => {
