@@ -23,16 +23,70 @@ let GoogleFit = null;
 let Scopes = null;
 
 try {
+  // Essayer différents imports pour react-native-health
   const healthModule = require("react-native-health");
-  AppleHealthKit = healthModule.default || healthModule;
+  const { NativeModules } = require("react-native");
+
+  // D'abord essayer le module importé directement
+  let healthKitModule =
+    healthModule.default || healthModule.AppleHealthKit || healthModule;
+
+  // Si le module n'expose que Constants, essayer d'accéder aux NativeModules
+  if (Platform.OS === "ios") {
+    // Essayer différents noms de modules natifs possibles
+    const possibleNativeModules = [
+      NativeModules.RNCHealth,
+      NativeModules.AppleHealthKit,
+      NativeModules.ReactNativeHealth,
+      NativeModules.Health,
+    ];
+
+    for (const nativeModule of possibleNativeModules) {
+      if (nativeModule && nativeModule.initHealthKit) {
+        console.log(
+          "Found native HealthKit module:",
+          Object.keys(nativeModule)
+        );
+        healthKitModule = nativeModule;
+        break;
+      }
+    }
+
+    // Si on n'a toujours que Constants, vérifier si le module natif existe
+    if (
+      !healthKitModule.initHealthKit &&
+      Object.keys(healthKitModule).length === 1 &&
+      healthKitModule.Constants
+    ) {
+      console.log("Only Constants available, checking NativeModules...");
+      console.log(
+        "Available NativeModules:",
+        Object.keys(NativeModules).filter(
+          (key) =>
+            key.toLowerCase().includes("health") ||
+            key.toLowerCase().includes("rnc")
+        )
+      );
+    }
+  }
+
+  AppleHealthKit = healthKitModule;
+
+  // Exposer Constants depuis le module importé si disponible
+  if (healthModule.Constants || healthModule.default?.Constants) {
+    AppleHealthKit.Constants =
+      healthModule.Constants || healthModule.default.Constants;
+  }
+
   console.log("Apple Health module loaded successfully", {
     hasAppleHealthKit: !!AppleHealthKit,
     moduleKeys: Object.keys(healthModule),
     appleHealthKitKeys: AppleHealthKit ? Object.keys(AppleHealthKit) : [],
     platform: Platform.OS,
-    hasInitHealthKit: AppleHealthKit?.initHealthKit ? "YES" : "NO",
-    hasIsAvailable: AppleHealthKit?.isAvailable ? "YES" : "NO",
-    hasAuthorize: AppleHealthKit?.authorize ? "YES" : "NO",
+    hasInitHealthKit: typeof AppleHealthKit?.initHealthKit,
+    hasIsAvailable: typeof AppleHealthKit?.isAvailable,
+    hasAuthorize: typeof AppleHealthKit?.authorize,
+    hasConstants: !!AppleHealthKit?.Constants,
   });
 } catch (e) {
   console.error("Apple Health not available:", e);
@@ -310,6 +364,48 @@ const ConnectedDevices = ({ navigation }) => {
       allKeys: Object.keys(AppleHealthKit),
     });
 
+    // Vérifier si le module natif est correctement lié
+    if (
+      !AppleHealthKit.initHealthKit &&
+      (!AppleHealthKit.Constants || Object.keys(AppleHealthKit).length <= 1)
+    ) {
+      console.error("AppleHealthKit module not properly linked", {
+        availableMethods: Object.keys(AppleHealthKit),
+        platform: Platform.OS,
+      });
+
+      const isSimulator =
+        Platform.OS === "ios" &&
+        Platform.isPad === false &&
+        Platform.isTV === false;
+      let message =
+        "Le module Apple Health n'est pas correctement lié au build natif.\n\n";
+
+      if (isSimulator) {
+        message +=
+          "⚠️ Vous êtes sur un simulateur iOS. Apple Health ne fonctionne PAS sur les simulateurs.\n\n";
+        message += "Pour utiliser Apple Health :\n";
+        message += "1. Testez sur un iPhone physique\n";
+        message += "2. Créez un nouveau build natif avec :\n";
+        message += "   eas build --profile development --platform ios\n";
+        message += "3. Installez le build sur votre iPhone physique\n";
+        message += "4. Réessayez de connecter Apple Health";
+      } else {
+        message +=
+          "Le module natif n'est pas correctement lié. Vous devez refaire un build natif.\n\n";
+        message += "Pour corriger le problème :\n";
+        message += "1. Créez un nouveau build natif avec :\n";
+        message += "   eas build --profile development --platform ios\n";
+        message += "2. Installez le nouveau build sur votre iPhone\n";
+        message += "3. Réessayez de connecter Apple Health\n\n";
+        message +=
+          "Le module react-native-health doit être lié lors de la compilation native.";
+      }
+
+      Alert.alert("Module non lié", message);
+      return;
+    }
+
     // Vérifier si HealthKit est disponible
     if (AppleHealthKit.isAvailable) {
       AppleHealthKit.isAvailable((err, available) => {
@@ -359,9 +455,12 @@ const ConnectedDevices = ({ navigation }) => {
         console.error("AppleHealthKit.initHealthKit is not a function", {
           availableMethods: Object.keys(AppleHealthKit),
         });
+
         Alert.alert(
           "Erreur de module",
-          "La méthode initHealthKit n'est pas disponible. Vérifiez que le module react-native-health est correctement lié au build natif."
+          "La méthode initHealthKit n'est pas disponible. Le module react-native-health n'est pas correctement lié au build natif.\n\n" +
+            "Vous devez refaire un build natif avec :\n" +
+            "eas build --profile development --platform ios"
         );
         return;
       }
