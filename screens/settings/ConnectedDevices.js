@@ -54,14 +54,16 @@ const DEVICES = [
     name: "Apple Health",
     icon: "heart-outline",
     color: "#FF2D55",
-    description: "Synchronisation automatique de tous vos entraînements (iPhone)",
+    description:
+      "Synchronisation automatique de tous vos entraînements (iPhone)",
   },
   {
     id: "google_fit",
     name: "Google Fit",
     icon: "fitness-outline",
     color: "#4285F4",
-    description: "Synchronisation automatique de tous vos entraînements (Android)",
+    description:
+      "Synchronisation automatique de tous vos entraînements (Android)",
   },
 ];
 
@@ -213,20 +215,53 @@ const ConnectedDevices = ({ navigation }) => {
     AppleHealthKit.initHealthKit(options, async (err) => {
       if (err) {
         console.error("Erreur init Apple Health:", err);
-        Alert.alert("Erreur", "Impossible d'accéder à Apple Health.");
+        let errorMessage = "Impossible d'accéder à Apple Health.";
+
+        // Messages d'erreur plus spécifiques
+        if (
+          err.message?.includes("permission") ||
+          err.message?.includes("denied")
+        ) {
+          errorMessage =
+            "L'accès à Apple Health a été refusé. Veuillez autoriser l'accès dans Réglages > Confidentialité > Santé > Nautic'Santé.";
+        } else if (
+          err.message?.includes("not available") ||
+          err.message?.includes("not supported")
+        ) {
+          errorMessage =
+            "Apple Health n'est pas disponible sur cet appareil. Veuillez utiliser un iPhone avec iOS 8.0 ou supérieur.";
+        } else if (err.code === 2) {
+          errorMessage =
+            "Les permissions Apple Health ne sont pas configurées correctement. Veuillez réinstaller l'application.";
+        }
+
+        Alert.alert("Erreur de connexion", errorMessage);
         return;
       }
 
       try {
         await syncAppleHealthData();
         setConnectedDevices((prev) => ({ ...prev, apple_health: true }));
+
+        // Sauvegarder dans le profil utilisateur
+        const user = appContext.user;
+        const externalConnections = user.externalConnections || {};
+        externalConnections.apple_health = { connected: true };
+        await API.put("/users/me", { ...user, externalConnections });
+        appContext.setUser({ ...user, externalConnections });
+
         Alert.alert(
           "Apple Health connecté ✅",
           "Vos entraînements des 7 derniers jours ont été synchronisés."
         );
       } catch (apiErr) {
-        console.error(apiErr);
-        Alert.alert("Erreur", "Impossible de synchroniser les données.");
+        console.error("Erreur synchronisation Apple Health:", apiErr);
+        Alert.alert(
+          "Erreur de synchronisation",
+          `Impossible de synchroniser les données.\n\n${
+            apiErr.message || "Erreur inconnue"
+          }`
+        );
       }
     });
   };
@@ -246,56 +281,80 @@ const ConnectedDevices = ({ navigation }) => {
           console.error("Erreur récupération workouts:", err);
         }
 
-        AppleHealthKit.getDailyStepCountSamples(options, async (err, stepsData) => {
-          if (err) {
-            reject(err);
-            return;
-          }
+        AppleHealthKit.getDailyStepCountSamples(
+          options,
+          async (err, stepsData) => {
+            if (err) {
+              reject(err);
+              return;
+            }
 
-          const groupedByDate = {};
+            const groupedByDate = {};
 
-          if (stepsData && stepsData.length > 0) {
-            stepsData.forEach((item) => {
-              const date = moment(item.startDate).format("YYYY-MM-DD");
-              if (!groupedByDate[date]) {
-                groupedByDate[date] = { steps: 0, distance: 0, calories: 0 };
-              }
-              groupedByDate[date].steps += item.value;
-            });
-          }
-
-          AppleHealthKit.getDailyDistanceWalkingRunningSamples(options, (err, distanceData) => {
-            if (!err && distanceData && distanceData.length > 0) {
-              distanceData.forEach((item) => {
+            if (stepsData && stepsData.length > 0) {
+              stepsData.forEach((item) => {
                 const date = moment(item.startDate).format("YYYY-MM-DD");
                 if (!groupedByDate[date]) {
                   groupedByDate[date] = { steps: 0, distance: 0, calories: 0 };
                 }
-                groupedByDate[date].distance += item.value;
+                groupedByDate[date].steps += item.value;
               });
             }
 
-            AppleHealthKit.getActiveEnergyBurned(options, async (err, caloriesData) => {
-              if (!err && caloriesData && caloriesData.length > 0) {
-                caloriesData.forEach((item) => {
-                  const date = moment(item.startDate).format("YYYY-MM-DD");
-                  if (!groupedByDate[date]) {
-                    groupedByDate[date] = { steps: 0, distance: 0, calories: 0 };
-                  }
-                  groupedByDate[date].calories += item.value;
-                });
-              }
-
-              for (const [date, data] of Object.entries(groupedByDate)) {
-                if (data.steps >= 6000) {
-                  await createWalkingTraining(date, data.steps, data.distance, data.calories);
+            AppleHealthKit.getDailyDistanceWalkingRunningSamples(
+              options,
+              (err, distanceData) => {
+                if (!err && distanceData && distanceData.length > 0) {
+                  distanceData.forEach((item) => {
+                    const date = moment(item.startDate).format("YYYY-MM-DD");
+                    if (!groupedByDate[date]) {
+                      groupedByDate[date] = {
+                        steps: 0,
+                        distance: 0,
+                        calories: 0,
+                      };
+                    }
+                    groupedByDate[date].distance += item.value;
+                  });
                 }
-              }
 
-              resolve();
-            });
-          });
-        });
+                AppleHealthKit.getActiveEnergyBurned(
+                  options,
+                  async (err, caloriesData) => {
+                    if (!err && caloriesData && caloriesData.length > 0) {
+                      caloriesData.forEach((item) => {
+                        const date = moment(item.startDate).format(
+                          "YYYY-MM-DD"
+                        );
+                        if (!groupedByDate[date]) {
+                          groupedByDate[date] = {
+                            steps: 0,
+                            distance: 0,
+                            calories: 0,
+                          };
+                        }
+                        groupedByDate[date].calories += item.value;
+                      });
+                    }
+
+                    for (const [date, data] of Object.entries(groupedByDate)) {
+                      if (data.steps >= 6000) {
+                        await createWalkingTraining(
+                          date,
+                          data.steps,
+                          data.distance,
+                          data.calories
+                        );
+                      }
+                    }
+
+                    resolve();
+                  }
+                );
+              }
+            );
+          }
+        );
       });
     });
   };
@@ -327,10 +386,25 @@ const ConnectedDevices = ({ navigation }) => {
       console.log("Google Fit authorization result:", result);
 
       if (!result.success) {
-        Alert.alert(
-          "Connexion refusée",
-          "Vous devez autoriser l'accès à Google Fit pour synchroniser vos données."
-        );
+        let errorMessage =
+          "Vous devez autoriser l'accès à Google Fit pour synchroniser vos données.";
+
+        // Messages d'erreur plus spécifiques
+        if (
+          result.message?.includes("OAuth") ||
+          result.message?.includes("configuration")
+        ) {
+          errorMessage =
+            "La configuration OAuth Google Fit n'est pas correcte. Veuillez contacter le support technique.";
+        } else if (
+          result.message?.includes("permission") ||
+          result.message?.includes("denied")
+        ) {
+          errorMessage =
+            "L'accès à Google Fit a été refusé. Veuillez autoriser l'accès dans les paramètres de l'application Google Fit.";
+        }
+
+        Alert.alert("Connexion refusée", errorMessage);
         return;
       }
 
@@ -351,10 +425,32 @@ const ConnectedDevices = ({ navigation }) => {
       );
     } catch (err) {
       console.error("Erreur Google Fit détaillée:", err);
-      Alert.alert(
-        "Erreur de connexion",
-        `Impossible de se connecter à Google Fit.\n\nDétails: ${err.message || "Erreur inconnue"}`
-      );
+      let errorMessage = `Impossible de se connecter à Google Fit.\n\n${
+        err.message || "Erreur inconnue"
+      }`;
+
+      // Messages d'erreur plus spécifiques selon le type d'erreur
+      if (
+        err.message?.includes("OAuth") ||
+        err.message?.includes("configuration")
+      ) {
+        errorMessage =
+          "La configuration OAuth Google Fit n'est pas correcte. Vérifiez que le SHA-1 fingerprint est configuré dans Google Cloud Console et que le package name correspond.";
+      } else if (
+        err.message?.includes("network") ||
+        err.message?.includes("connection")
+      ) {
+        errorMessage =
+          "Problème de connexion réseau. Veuillez vérifier votre connexion internet.";
+      } else if (
+        err.message?.includes("permission") ||
+        err.message?.includes("denied")
+      ) {
+        errorMessage =
+          "L'accès à Google Fit a été refusé. Veuillez autoriser l'accès dans les paramètres de l'application Google Fit ou réessayer.";
+      }
+
+      Alert.alert("Erreur de connexion", errorMessage);
     }
   };
 
@@ -364,8 +460,14 @@ const ConnectedDevices = ({ navigation }) => {
 
     try {
       const stepsData = await GoogleFit.getDailySteps(startDate, endDate);
-      const distanceData = await GoogleFit.getDailyDistanceSamples(startDate, endDate);
-      const caloriesData = await GoogleFit.getDailyCalorieSamples(startDate, endDate);
+      const distanceData = await GoogleFit.getDailyDistanceSamples(
+        startDate,
+        endDate
+      );
+      const caloriesData = await GoogleFit.getDailyCalorieSamples(
+        startDate,
+        endDate
+      );
 
       const groupedByDate = {};
 
@@ -402,7 +504,12 @@ const ConnectedDevices = ({ navigation }) => {
 
       for (const [date, data] of Object.entries(groupedByDate)) {
         if (data.steps >= 6000) {
-          await createWalkingTraining(date, data.steps, data.distance, data.calories);
+          await createWalkingTraining(
+            date,
+            data.steps,
+            data.distance,
+            data.calories
+          );
         }
       }
     } catch (error) {
@@ -425,7 +532,9 @@ const ConnectedDevices = ({ navigation }) => {
       };
 
       await API.post("/calendar-element/createMyActivityElement", trainingData);
-      console.log(`Entraînement créé pour ${date}: ${durationMinutes} min, ${steps} pas`);
+      console.log(
+        `Entraînement créé pour ${date}: ${durationMinutes} min, ${steps} pas`
+      );
     } catch (error) {
       console.error("Erreur création entraînement:", error);
     }
