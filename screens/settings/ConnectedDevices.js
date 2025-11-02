@@ -28,14 +28,14 @@ try {
 }
 
 try {
-  const googleFitModule = require("@ovalmoney/react-native-fitness");
-  GoogleFit = googleFitModule.default;
-  Scopes = googleFitModule.Scopes || googleFitModule.default?.Scopes;
+  const GoogleFitModule = require("react-native-google-fit");
+  GoogleFit = GoogleFitModule.default || GoogleFitModule;
+  Scopes = GoogleFitModule.Scopes;
   console.log("Google Fit module loaded successfully", {
     hasGoogleFit: !!GoogleFit,
     hasScopes: !!Scopes,
-    moduleKeys: Object.keys(googleFitModule),
-    defaultKeys: GoogleFit ? Object.keys(GoogleFit) : [],
+    moduleKeys: Object.keys(GoogleFitModule),
+    googleFitKeys: GoogleFit ? Object.keys(GoogleFit) : [],
   });
 } catch (e) {
   console.error("Google Fit not available:", e);
@@ -406,26 +406,40 @@ const ConnectedDevices = ({ navigation }) => {
         ];
 
     try {
-      // Le package @ovalmoney/react-native-fitness n'a pas de méthode authorize()
-      // L'authentification se fait automatiquement lors du premier appel de données
-      // On essaie d'appeler getSteps qui devrait déclencher l'authentification OAuth si nécessaire
-
       console.log("Tentative de connexion à Google Fit...");
-      // Les dates doivent être au format ISO 8601 string
-      const startDate = moment()
-        .subtract(1, "day")
-        .startOf("day")
-        .toISOString();
-      const endDate = moment().endOf("day").toISOString();
 
-      // Essayer d'obtenir des données - cela devrait déclencher l'authentification automatiquement
-      // getSteps attend un objet avec startDate, endDate et interval
-      const testData = await GoogleFit.getSteps({
-        startDate,
-        endDate,
-        interval: "days",
-      });
-      console.log("Google Fit - données obtenues avec succès:", testData);
+      // react-native-google-fit a une méthode authorize() explicite
+      const options = {
+        scopes: FITNESS_SCOPES,
+      };
+
+      const authResult = await GoogleFit.authorize(options);
+      console.log("Google Fit authorization result:", authResult);
+
+      if (!authResult.success) {
+        let errorMessage =
+          "Vous devez autoriser l'accès à Google Fit pour synchroniser vos données.";
+
+        // Messages d'erreur plus spécifiques
+        if (
+          authResult.message?.includes("OAuth") ||
+          authResult.message?.includes("configuration") ||
+          authResult.message?.includes("SIGN_IN_REQUIRED")
+        ) {
+          errorMessage =
+            "La configuration OAuth Google Fit n'est pas correcte. Vérifiez que le SHA-1 fingerprint est configuré dans Google Cloud Console et que le package name correspond à : com.undersolutions.nauticsante";
+        } else if (
+          authResult.message?.includes("permission") ||
+          authResult.message?.includes("denied") ||
+          authResult.message?.includes("cancel")
+        ) {
+          errorMessage =
+            "L'accès à Google Fit a été refusé ou annulé. Veuillez autoriser l'accès et réessayer.";
+        }
+
+        Alert.alert("Connexion refusée", errorMessage);
+        return;
+      }
 
       // Si on arrive ici, l'authentification a réussi
       // Synchroniser les données des 7 derniers jours
@@ -481,42 +495,38 @@ const ConnectedDevices = ({ navigation }) => {
   };
 
   const syncGoogleFitData = async () => {
-    // Les dates doivent être au format ISO 8601 string
-    const startDate = moment().subtract(7, "days").startOf("day").toISOString();
-    const endDate = moment().endOf("day").toISOString();
+    // react-native-google-fit utilise des timestamps en millisecondes
+    const startDate = moment().subtract(7, "days").startOf("day").valueOf();
+    const endDate = moment().endOf("day").valueOf();
 
     try {
-      // getSteps attend un objet avec startDate, endDate et interval
-      const stepsData = await GoogleFit.getSteps({
-        startDate,
-        endDate,
-        interval: "days",
+      // react-native-google-fit utilise getDailyStepCountSamples pour les pas
+      const stepsData = await GoogleFit.getDailyStepCountSamples({
+        startDate: startDate,
+        endDate: endDate,
       });
-      // getDistances et getCalories utilisent probablement la même syntaxe
-      const distanceData = await GoogleFit.getDistances({
-        startDate,
-        endDate,
-        interval: "days",
+
+      // getDailyDistanceSamples pour la distance
+      const distanceData = await GoogleFit.getDailyDistanceSamples({
+        startDate: startDate,
+        endDate: endDate,
       });
-      const caloriesData = await GoogleFit.getCalories({
-        startDate,
-        endDate,
-        interval: "days",
+
+      // getDailyCalorieSamples pour les calories
+      const caloriesData = await GoogleFit.getDailyCalorieSamples({
+        startDate: startDate,
+        endDate: endDate,
       });
 
       const groupedByDate = {};
 
+      // react-native-google-fit retourne des données au format spécifique
       // Adapter le traitement selon le format de données retourné
-      // Le format peut varier selon le package - on s'adapte
       if (stepsData && stepsData.length > 0) {
         stepsData.forEach((day) => {
-          // Le format peut être { date: "...", value: X } ou { date: "...", steps: [...] }
-          const date = moment(day.date || day.startDate).format("YYYY-MM-DD");
-          const daySteps =
-            day.value ||
-            (day.steps
-              ? day.steps.reduce((sum, step) => sum + (step.value || 0), 0)
-              : 0);
+          // Format : { startDate: timestamp, endDate: timestamp, value: number }
+          const date = moment(day.startDate || day.date).format("YYYY-MM-DD");
+          const daySteps = day.value || day.quantity || 0;
           if (!groupedByDate[date]) {
             groupedByDate[date] = { steps: 0, distance: 0, calories: 0 };
           }
@@ -526,21 +536,23 @@ const ConnectedDevices = ({ navigation }) => {
 
       if (distanceData && distanceData.length > 0) {
         distanceData.forEach((item) => {
-          const date = moment(item.date || item.startDate).format("YYYY-MM-DD");
+          const date = moment(item.startDate || item.date).format("YYYY-MM-DD");
           if (!groupedByDate[date]) {
             groupedByDate[date] = { steps: 0, distance: 0, calories: 0 };
           }
-          groupedByDate[date].distance += item.distance || item.value || 0;
+          // Distance en mètres - convertir en km si nécessaire
+          const distance = item.value || item.quantity || 0;
+          groupedByDate[date].distance += distance || 0;
         });
       }
 
       if (caloriesData && caloriesData.length > 0) {
         caloriesData.forEach((item) => {
-          const date = moment(item.date || item.startDate).format("YYYY-MM-DD");
+          const date = moment(item.startDate || item.date).format("YYYY-MM-DD");
           if (!groupedByDate[date]) {
             groupedByDate[date] = { steps: 0, distance: 0, calories: 0 };
           }
-          groupedByDate[date].calories += item.calorie || item.value || 0;
+          groupedByDate[date].calories += item.value || item.quantity || 0;
         });
       }
 

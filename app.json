@@ -65,12 +65,6 @@
           "healthSharePermission": "Nautic'Santé a besoin d'accéder à vos données de santé pour synchroniser automatiquement vos entraînements."
         }
       ],
-      [
-        "./plugins/withGoogleFit",
-        {
-          "androidClientId": "u0iht772eh485isvo9pt4cqrhlnt6oto.apps.googleusercontent.com"
-        }
-      ]
     ],
     "userInterfaceStyle": "light",
     "extra": {
