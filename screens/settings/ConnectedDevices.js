@@ -313,6 +313,19 @@ const ConnectedDevices = ({ navigation }) => {
       },
     };
 
+    // initHealthKit() demande automatiquement les permissions si nécessaire
+    // iOS affichera automatiquement le dialogue de permissions natif
+    console.log(
+      "Initialisation de HealthKit - les permissions seront demandées automatiquement..."
+    );
+
+    // Afficher un message informatif à l'utilisateur
+    Alert.alert(
+      "Autorisation requise",
+      "iOS va vous demander d'autoriser l'accès à Apple Health. Veuillez accepter toutes les permissions pour que la synchronisation fonctionne correctement.",
+      [{ text: "OK" }]
+    );
+
     AppleHealthKit.initHealthKit(options, async (err) => {
       if (err) {
         console.error("Erreur init Apple Health:", err);
@@ -321,10 +334,12 @@ const ConnectedDevices = ({ navigation }) => {
         // Messages d'erreur plus spécifiques
         if (
           err.message?.includes("permission") ||
-          err.message?.includes("denied")
+          err.message?.includes("denied") ||
+          err.code === 3 // Code d'erreur pour permissions refusées
         ) {
           errorMessage =
-            "L'accès à Apple Health a été refusé. Veuillez autoriser l'accès dans Réglages > Confidentialité > Santé > Nautic'Santé.";
+            "L'accès à Apple Health a été refusé. Veuillez autoriser l'accès dans Réglages > Confidentialité > Santé > Nautic'Santé.\n\n" +
+            "Activez toutes les catégories nécessaires : Pas, Distance, Calories, Entraînements.";
         } else if (
           err.message?.includes("not available") ||
           err.message?.includes("not supported")
