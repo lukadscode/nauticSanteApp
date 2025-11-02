@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthContext } from "../../context/AuthContext";
 import API from "../../services/api";
+import { GOOGLE_FIT_CLIENT_ID } from "../../services/env";
 import moment from "moment";
 
 let AppleHealthKit = null;
@@ -374,15 +375,15 @@ const ConnectedDevices = ({ navigation }) => {
     }
 
     try {
-      // Autoriser l'accès directement avec la bonne syntaxe
-      // Le Client ID OAuth est configuré dans app.json via le plugin
+      // Autoriser l'accès avec le Client ID explicitement
+      // Le Client ID est aussi configuré dans app.json via le plugin pour les builds natifs
       const result = await GoogleFit.authorize({
         scopes: [
           Scopes.FITNESS_ACTIVITY_READ,
           Scopes.FITNESS_LOCATION_READ,
           Scopes.FITNESS_BODY_READ,
         ],
-        // Le clientId sera automatiquement lu depuis la configuration Android
+        clientId: GOOGLE_FIT_CLIENT_ID, // Passer le Client ID explicitement
       });
 
       console.log("Google Fit authorization result:", result);
