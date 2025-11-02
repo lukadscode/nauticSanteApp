@@ -411,11 +411,20 @@ const ConnectedDevices = ({ navigation }) => {
       // On essaie d'appeler getSteps qui devrait déclencher l'authentification OAuth si nécessaire
 
       console.log("Tentative de connexion à Google Fit...");
-      const startDate = moment().subtract(1, "day").startOf("day").toDate();
-      const endDate = moment().endOf("day").toDate();
+      // Les dates doivent être au format ISO 8601 string
+      const startDate = moment()
+        .subtract(1, "day")
+        .startOf("day")
+        .toISOString();
+      const endDate = moment().endOf("day").toISOString();
 
       // Essayer d'obtenir des données - cela devrait déclencher l'authentification automatiquement
-      const testData = await GoogleFit.getSteps(startDate, endDate);
+      // getSteps attend un objet avec startDate, endDate et interval
+      const testData = await GoogleFit.getSteps({
+        startDate,
+        endDate,
+        interval: "days",
+      });
       console.log("Google Fit - données obtenues avec succès:", testData);
 
       // Si on arrive ici, l'authentification a réussi
@@ -472,50 +481,66 @@ const ConnectedDevices = ({ navigation }) => {
   };
 
   const syncGoogleFitData = async () => {
-    const startDate = moment().subtract(7, "days").startOf("day").toDate();
-    const endDate = moment().endOf("day").toDate();
+    // Les dates doivent être au format ISO 8601 string
+    const startDate = moment().subtract(7, "days").startOf("day").toISOString();
+    const endDate = moment().endOf("day").toISOString();
 
     try {
-      const stepsData = await GoogleFit.getDailySteps(startDate, endDate);
-      const distanceData = await GoogleFit.getDailyDistanceSamples(
+      // getSteps attend un objet avec startDate, endDate et interval
+      const stepsData = await GoogleFit.getSteps({
         startDate,
-        endDate
-      );
-      const caloriesData = await GoogleFit.getDailyCalorieSamples(
+        endDate,
+        interval: "days",
+      });
+      // getDistances et getCalories utilisent probablement la même syntaxe
+      const distanceData = await GoogleFit.getDistances({
         startDate,
-        endDate
-      );
+        endDate,
+        interval: "days",
+      });
+      const caloriesData = await GoogleFit.getCalories({
+        startDate,
+        endDate,
+        interval: "days",
+      });
 
       const groupedByDate = {};
 
+      // Adapter le traitement selon le format de données retourné
+      // Le format peut varier selon le package - on s'adapte
       if (stepsData && stepsData.length > 0) {
         stepsData.forEach((day) => {
-          const date = moment(day.date).format("YYYY-MM-DD");
-          const daySteps = day.steps.reduce((sum, step) => sum + step.value, 0);
+          // Le format peut être { date: "...", value: X } ou { date: "...", steps: [...] }
+          const date = moment(day.date || day.startDate).format("YYYY-MM-DD");
+          const daySteps =
+            day.value ||
+            (day.steps
+              ? day.steps.reduce((sum, step) => sum + (step.value || 0), 0)
+              : 0);
           if (!groupedByDate[date]) {
             groupedByDate[date] = { steps: 0, distance: 0, calories: 0 };
           }
-          groupedByDate[date].steps += daySteps;
+          groupedByDate[date].steps += daySteps || 0;
         });
       }
 
       if (distanceData && distanceData.length > 0) {
         distanceData.forEach((item) => {
-          const date = moment(item.date).format("YYYY-MM-DD");
+          const date = moment(item.date || item.startDate).format("YYYY-MM-DD");
           if (!groupedByDate[date]) {
             groupedByDate[date] = { steps: 0, distance: 0, calories: 0 };
           }
-          groupedByDate[date].distance += item.distance || 0;
+          groupedByDate[date].distance += item.distance || item.value || 0;
         });
       }
 
       if (caloriesData && caloriesData.length > 0) {
         caloriesData.forEach((item) => {
-          const date = moment(item.date).format("YYYY-MM-DD");
+          const date = moment(item.date || item.startDate).format("YYYY-MM-DD");
           if (!groupedByDate[date]) {
             groupedByDate[date] = { steps: 0, distance: 0, calories: 0 };
           }
-          groupedByDate[date].calories += item.calorie || 0;
+          groupedByDate[date].calories += item.calorie || item.value || 0;
         });
       }
 
