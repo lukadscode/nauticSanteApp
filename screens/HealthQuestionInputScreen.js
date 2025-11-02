@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import {
   Alert,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -526,7 +527,10 @@ const HealthQuestionInputScreen = ({ route }) => {
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.questionCard}>
           {question.icon && (
             <View style={styles.iconContainer}>
@@ -535,7 +539,9 @@ const HealthQuestionInputScreen = ({ route }) => {
           )}
           <Text style={styles.questionTitle}>{question?.title}</Text>
           {question?.description && (
-            <Text style={styles.questionDescription}>{question?.description}</Text>
+            <Text style={styles.questionDescription}>
+              {question?.description}
+            </Text>
           )}
         </View>
 
@@ -548,10 +554,15 @@ const HealthQuestionInputScreen = ({ route }) => {
                   selectedValue={selectValue}
                   onValueChange={(itemValue) => setSelectValue(itemValue)}
                   style={styles.picker}
+                  itemStyle={styles.pickerItem}
+                  mode={Platform.OS === "ios" ? "dropdown" : "dropdown"}
                 >
                   <Picker.Item label="Choisissez une option..." value={0} />
                   <Picker.Item label="Toucher le sol doigts fermés" value={5} />
-                  <Picker.Item label="Le bout des doigts touche le sol" value={4} />
+                  <Picker.Item
+                    label="Le bout des doigts touche le sol"
+                    value={4}
+                  />
                   <Picker.Item
                     label="Le bout des doigts touche le cou de pied"
                     value={3}
@@ -585,7 +596,8 @@ const HealthQuestionInputScreen = ({ route }) => {
                 {questionSlug === "equilibre" && "En secondes (ex: 45)"}
                 {questionSlug === "force-bras" && "Nombre de répétitions"}
                 {questionSlug === "force-jambes" && "Nombre de répétitions"}
-                {questionSlug === "endurance" && "Distance en mètres (ex: 1200)"}
+                {questionSlug === "endurance" &&
+                  "Distance en mètres (ex: 1200)"}
               </Text>
             </View>
           )}
@@ -593,7 +605,8 @@ const HealthQuestionInputScreen = ({ route }) => {
           <View style={styles.infoCard}>
             <Ionicons name="information-circle" size={20} color="#2167b1" />
             <Text style={styles.infoText}>
-              Votre score sera calculé automatiquement en fonction de votre âge et sexe
+              Votre score sera calculé automatiquement en fonction de votre âge
+              et sexe
             </Text>
           </View>
         </View>
@@ -731,10 +744,17 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 2,
     borderColor: "#E0E6F0",
-    overflow: "hidden",
+    overflow: Platform.OS === "ios" ? "visible" : "hidden",
+    minHeight: 50,
   },
   picker: {
-    height: 50,
+    height: Platform.OS === "ios" ? 50 : 50,
+    width: "100%",
+  },
+  pickerItem: {
+    height: Platform.OS === "ios" ? 120 : undefined,
+    fontSize: 16,
+    color: "#1E283C",
   },
   infoCard: {
     flexDirection: "row",
