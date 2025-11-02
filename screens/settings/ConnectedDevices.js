@@ -31,8 +31,14 @@ try {
   const googleFitModule = require("@ovalmoney/react-native-fitness");
   GoogleFit = googleFitModule.default;
   Scopes = googleFitModule.Scopes;
+  console.log("Google Fit module loaded successfully", {
+    hasGoogleFit: !!GoogleFit,
+    hasScopes: !!Scopes,
+  });
 } catch (e) {
-  console.log("Google Fit not available");
+  console.error("Google Fit not available:", e);
+  GoogleFit = null;
+  Scopes = null;
 }
 
 const DEVICES = [
@@ -193,7 +199,12 @@ const ConnectedDevices = ({ navigation }) => {
     if (!AppleHealthKit) {
       Alert.alert(
         "Module non disponible",
-        "Apple Health nécessite un build natif. Installez l'application depuis TestFlight ou l'App Store."
+        "Apple Health nécessite un build natif avec les modules natifs compilés.\n\n" +
+          "Vous utilisez probablement Expo Go, qui ne supporte pas les modules natifs.\n\n" +
+          "Pour utiliser Apple Health :\n" +
+          "1. Créez un build natif avec : eas build --profile development --platform ios\n" +
+          "2. Installez le build sur votre iPhone\n" +
+          "3. Réessayez de connecter Apple Health"
       );
       return;
     }
@@ -369,7 +380,12 @@ const ConnectedDevices = ({ navigation }) => {
     if (!GoogleFit || !Scopes) {
       Alert.alert(
         "Module non disponible",
-        "Google Fit nécessite un build natif. Créez un build avec EAS pour utiliser cette fonctionnalité."
+        "Google Fit nécessite un build natif avec les modules natifs compilés.\n\n" +
+          "Vous utilisez probablement Expo Go, qui ne supporte pas les modules natifs.\n\n" +
+          "Pour utiliser Google Fit :\n" +
+          "1. Créez un build natif avec : eas build --profile development --platform android\n" +
+          "2. Installez le build sur votre appareil Android\n" +
+          "3. Réessayez de connecter Google Fit"
       );
       return;
     }
