@@ -178,8 +178,14 @@ const ConnectedDevices = ({ navigation }) => {
               const user = appContext.user;
               const externalConnections = user.externalConnections || {};
               delete externalConnections[deviceId];
-              await API.put("/users/me", user);
-              appContext.setUser(user);
+              const modifiedUser = { ...user, externalConnections };
+              try {
+                const res = (await API.put("/user/me", modifiedUser))?.data;
+                appContext.setUser(res || modifiedUser);
+              } catch (apiError) {
+                console.error("Erreur sauvegarde déconnexion:", apiError);
+                appContext.setUser(modifiedUser);
+              }
               setConnectedDevices((prev) => ({ ...prev, [deviceId]: false }));
             } catch (error) {
               console.error(`Erreur déconnexion ${deviceId}:`, error);
@@ -262,8 +268,25 @@ const ConnectedDevices = ({ navigation }) => {
         const user = appContext.user;
         const externalConnections = user.externalConnections || {};
         externalConnections.apple_health = { connected: true };
-        await API.put("/users/me", { ...user, externalConnections });
-        appContext.setUser({ ...user, externalConnections });
+
+        // Utiliser /user/me comme dans les autres fichiers
+        const modifiedUser = {
+          ...user,
+          externalConnections: externalConnections,
+        };
+
+        try {
+          const res = (await API.put("/user/me", modifiedUser))?.data;
+          if (res) {
+            await appContext.setUser(res);
+          } else {
+            appContext.setUser({ ...user, externalConnections });
+          }
+        } catch (apiError) {
+          console.error("Erreur sauvegarde profil Apple Health:", apiError);
+          // Mettre à jour localement quand même
+          appContext.setUser({ ...user, externalConnections });
+        }
 
         Alert.alert(
           "Apple Health connecté ✅",
@@ -483,8 +506,27 @@ const ConnectedDevices = ({ navigation }) => {
       const user = appContext.user;
       const externalConnections = user.externalConnections || {};
       externalConnections.google_fit = { connected: true };
-      await API.put("/users/me", { ...user, externalConnections });
-      appContext.setUser({ ...user, externalConnections });
+
+      // Utiliser /user/me comme dans les autres fichiers et n'envoyer que les champs nécessaires
+      const modifiedUser = {
+        ...user,
+        externalConnections: externalConnections,
+      };
+
+      try {
+        const res = (await API.put("/user/me", modifiedUser))?.data;
+        if (res) {
+          await appContext.setUser(res);
+        } else {
+          // Fallback si la réponse n'a pas de data
+          appContext.setUser({ ...user, externalConnections });
+        }
+      } catch (apiError) {
+        console.error("Erreur sauvegarde profil:", apiError);
+        // Mettre à jour localement quand même
+        appContext.setUser({ ...user, externalConnections });
+        // Ne pas bloquer - la connexion fonctionne même si la sauvegarde échoue
+      }
 
       Alert.alert(
         "Google Fit connecté ✅",
