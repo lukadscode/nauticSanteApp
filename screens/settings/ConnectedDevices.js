@@ -30,10 +30,12 @@ try {
 try {
   const googleFitModule = require("@ovalmoney/react-native-fitness");
   GoogleFit = googleFitModule.default;
-  Scopes = googleFitModule.Scopes;
+  Scopes = googleFitModule.Scopes || googleFitModule.default?.Scopes;
   console.log("Google Fit module loaded successfully", {
     hasGoogleFit: !!GoogleFit,
     hasScopes: !!Scopes,
+    moduleKeys: Object.keys(googleFitModule),
+    defaultKeys: GoogleFit ? Object.keys(GoogleFit) : [],
   });
 } catch (e) {
   console.error("Google Fit not available:", e);
@@ -377,7 +379,7 @@ const ConnectedDevices = ({ navigation }) => {
       return;
     }
 
-    if (!GoogleFit || !Scopes) {
+    if (!GoogleFit) {
       Alert.alert(
         "Module non disponible",
         "Google Fit nécessite un build natif avec les modules natifs compilés.\n\n" +
@@ -390,15 +392,24 @@ const ConnectedDevices = ({ navigation }) => {
       return;
     }
 
+    // Si Scopes n'est pas disponible, on utilise les strings directement
+    const FITNESS_SCOPES = Scopes
+      ? [
+          Scopes.FITNESS_ACTIVITY_READ,
+          Scopes.FITNESS_LOCATION_READ,
+          Scopes.FITNESS_BODY_READ,
+        ]
+      : [
+          "https://www.googleapis.com/auth/fitness.activity.read",
+          "https://www.googleapis.com/auth/fitness.location.read",
+          "https://www.googleapis.com/auth/fitness.body.read",
+        ];
+
     try {
       // Autoriser l'accès avec le Client ID explicitement
       // Le Client ID est aussi configuré dans app.json via le plugin pour les builds natifs
       const result = await GoogleFit.authorize({
-        scopes: [
-          Scopes.FITNESS_ACTIVITY_READ,
-          Scopes.FITNESS_LOCATION_READ,
-          Scopes.FITNESS_BODY_READ,
-        ],
+        scopes: FITNESS_SCOPES,
         clientId: GOOGLE_FIT_CLIENT_ID, // Passer le Client ID explicitement
       });
 
