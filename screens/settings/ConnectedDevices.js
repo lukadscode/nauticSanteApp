@@ -495,9 +495,14 @@ const ConnectedDevices = ({ navigation }) => {
   };
 
   const syncGoogleFitData = async () => {
-    // react-native-google-fit utilise des timestamps en millisecondes
-    const startDate = moment().subtract(7, "days").startOf("day").valueOf();
-    const endDate = moment().endOf("day").valueOf();
+    // react-native-google-fit utilise des objets Date
+    const startDate = moment().subtract(7, "days").startOf("day").toDate();
+    const endDate = moment().endOf("day").toDate();
+
+    console.log("Google Fit sync dates:", {
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+    });
 
     try {
       // react-native-google-fit utilise getDailyStepCountSamples pour les pas
