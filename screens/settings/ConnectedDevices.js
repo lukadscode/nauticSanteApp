@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
   Platform,
+  PermissionsAndroid,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -442,6 +443,38 @@ const ConnectedDevices = ({ navigation }) => {
       }
 
       // Si on arrive ici, l'authentification a réussi
+      // Demander la permission ACTIVITY_RECOGNITION avant de synchroniser
+      if (Platform.OS === "android") {
+        try {
+          // ACTIVITY_RECOGNITION est disponible depuis Android 10 (API 29)
+          // Utiliser le string directement pour être sûr
+          const permission = "android.permission.ACTIVITY_RECOGNITION";
+
+          const granted = await PermissionsAndroid.request(permission, {
+            title: "Permission de reconnaissance d'activité",
+            message:
+              "Nautic'Santé a besoin de la permission de reconnaissance d'activité pour accéder à vos données Google Fit.",
+            buttonNeutral: "Demander plus tard",
+            buttonNegative: "Refuser",
+            buttonPositive: "Autoriser",
+          });
+
+          if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+            Alert.alert(
+              "Permission refusée",
+              "La permission de reconnaissance d'activité est nécessaire pour synchroniser vos données Google Fit. Veuillez l'autoriser dans les paramètres de l'application."
+            );
+            return;
+          }
+        } catch (err) {
+          console.error("Erreur demande permission:", err);
+          // Continuer quand même - parfois la permission peut être déjà accordée
+          console.log(
+            "Permission non accordée, mais on continue quand même..."
+          );
+        }
+      }
+
       // Synchroniser les données des 7 derniers jours
       await syncGoogleFitData();
       setConnectedDevices((prev) => ({ ...prev, google_fit: true }));
