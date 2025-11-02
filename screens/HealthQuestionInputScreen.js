@@ -549,34 +549,90 @@ const HealthQuestionInputScreen = ({ route }) => {
           {questionSlug === "souplesse" ? (
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Sélectionnez votre niveau</Text>
-              <View style={styles.pickerWrapper}>
-                <Picker
-                  selectedValue={selectValue}
-                  onValueChange={(itemValue) => setSelectValue(itemValue)}
-                  style={styles.picker}
-                  itemStyle={styles.pickerItem}
-                  mode={Platform.OS === "ios" ? "dropdown" : "dropdown"}
-                >
-                  <Picker.Item label="Choisissez une option..." value={0} />
-                  <Picker.Item label="Toucher le sol doigts fermés" value={5} />
-                  <Picker.Item
-                    label="Le bout des doigts touche le sol"
-                    value={4}
-                  />
-                  <Picker.Item
-                    label="Le bout des doigts touche le cou de pied"
-                    value={3}
-                  />
-                  <Picker.Item
-                    label="Le bout des doigts atteint le bas des tibias"
-                    value={2}
-                  />
-                  <Picker.Item
-                    label="Le bout des doigts atteint le milieu des tibias"
-                    value={1}
-                  />
-                </Picker>
-              </View>
+              {Platform.OS === "ios" ? (
+                <View style={styles.radioList}>
+                  {[
+                    { label: "Toucher le sol doigts fermés", value: 5 },
+                    { label: "Le bout des doigts touche le sol", value: 4 },
+                    {
+                      label: "Le bout des doigts touche le cou de pied",
+                      value: 3,
+                    },
+                    {
+                      label: "Le bout des doigts atteint le bas des tibias",
+                      value: 2,
+                    },
+                    {
+                      label: "Le bout des doigts atteint le milieu des tibias",
+                      value: 1,
+                    },
+                  ].map((option) => (
+                    <TouchableOpacity
+                      key={option.value}
+                      style={[
+                        styles.radioOption,
+                        selectValue === option.value &&
+                          styles.radioOptionSelected,
+                      ]}
+                      onPress={() => setSelectValue(option.value)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.radioContent}>
+                        <View
+                          style={[
+                            styles.radioCircle,
+                            selectValue === option.value &&
+                              styles.radioCircleSelected,
+                          ]}
+                        >
+                          {selectValue === option.value && (
+                            <View style={styles.radioInner} />
+                          )}
+                        </View>
+                        <Text
+                          style={[
+                            styles.radioLabel,
+                            selectValue === option.value &&
+                              styles.radioLabelSelected,
+                          ]}
+                        >
+                          {option.label}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.pickerWrapper}>
+                  <Picker
+                    selectedValue={selectValue}
+                    onValueChange={(itemValue) => setSelectValue(itemValue)}
+                    style={styles.picker}
+                  >
+                    <Picker.Item label="Choisissez une option..." value={0} />
+                    <Picker.Item
+                      label="Toucher le sol doigts fermés"
+                      value={5}
+                    />
+                    <Picker.Item
+                      label="Le bout des doigts touche le sol"
+                      value={4}
+                    />
+                    <Picker.Item
+                      label="Le bout des doigts touche le cou de pied"
+                      value={3}
+                    />
+                    <Picker.Item
+                      label="Le bout des doigts atteint le bas des tibias"
+                      value={2}
+                    />
+                    <Picker.Item
+                      label="Le bout des doigts atteint le milieu des tibias"
+                      value={1}
+                    />
+                  </Picker>
+                </View>
+              )}
             </View>
           ) : (
             <View style={styles.inputContainer}>
@@ -744,17 +800,69 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 2,
     borderColor: "#E0E6F0",
-    overflow: Platform.OS === "ios" ? "visible" : "hidden",
+    overflow: "hidden",
     minHeight: 50,
   },
   picker: {
-    height: Platform.OS === "ios" ? 50 : 50,
+    height: 50,
     width: "100%",
   },
   pickerItem: {
     height: Platform.OS === "ios" ? 120 : undefined,
     fontSize: 16,
     color: "#1E283C",
+  },
+  radioList: {
+    gap: 12,
+  },
+  radioOption: {
+    backgroundColor: "#F5F7FA",
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#E0E6F0",
+    padding: 16,
+    minHeight: 56,
+    justifyContent: "center",
+  },
+  radioOptionSelected: {
+    backgroundColor: "#E3F2FD",
+    borderColor: "#2167b1",
+    borderWidth: 2,
+  },
+  radioContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  radioCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#8D95A7",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
+  },
+  radioCircleSelected: {
+    borderColor: "#2167b1",
+    backgroundColor: "#FFFFFF",
+  },
+  radioInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#2167b1",
+  },
+  radioLabel: {
+    flex: 1,
+    fontSize: 15,
+    color: "#1E283C",
+    lineHeight: 20,
+  },
+  radioLabelSelected: {
+    color: "#2167b1",
+    fontWeight: "600",
   },
   infoCard: {
     flexDirection: "row",
