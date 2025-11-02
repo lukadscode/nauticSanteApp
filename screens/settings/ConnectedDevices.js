@@ -158,8 +158,62 @@ const ConnectedDevices = ({ navigation }) => {
 
   const handleDisconnect = async (deviceId) => {
     if (deviceId === "apple_health" || deviceId === "google_fit") {
-      setConnectedDevices((prev) => ({ ...prev, [deviceId]: false }));
-      Alert.alert(`${deviceId} déconnecté`);
+      const device = DEVICES.find((d) => d.id === deviceId);
+      Alert.alert(
+        `Déconnecter ${device.name}`,
+        `Êtes-vous sûr de vouloir déconnecter ${device.name} ?`,
+        [
+          { text: "Annuler", style: "cancel" },
+          {
+            text: "Déconnecter",
+            style: "destructive",
+            onPress: async () => {
+              setToggling((prev) => ({ ...prev, [deviceId]: true }));
+              try {
+                // Déconnecter du service si nécessaire
+                if (deviceId === "google_fit" && GoogleFit) {
+                  try {
+                    await GoogleFit.disconnect();
+                    console.log("Google Fit déconnecté");
+                  } catch (disconnectError) {
+                    console.error(
+                      "Erreur déconnexion Google Fit:",
+                      disconnectError
+                    );
+                  }
+                }
+
+                // Supprimer de la liste des connexions
+                const user = appContext.user;
+                const externalConnections = user.externalConnections || {};
+                delete externalConnections[deviceId];
+
+                // Sauvegarder sur le serveur
+                const modifiedUser = { ...user, externalConnections };
+                try {
+                  const res = (await API.put("/user/me", modifiedUser))?.data;
+                  appContext.setUser(res || modifiedUser);
+                } catch (apiError) {
+                  console.error("Erreur sauvegarde déconnexion:", apiError);
+                  // Mettre à jour localement quand même
+                  appContext.setUser(modifiedUser);
+                }
+
+                setConnectedDevices((prev) => ({ ...prev, [deviceId]: false }));
+                Alert.alert(
+                  "Déconnecté",
+                  `${device.name} a été déconnecté avec succès.`
+                );
+              } catch (error) {
+                console.error(`Erreur déconnexion ${deviceId}:`, error);
+                Alert.alert("Erreur", "Impossible de se déconnecter.");
+              } finally {
+                setToggling((prev) => ({ ...prev, [deviceId]: false }));
+              }
+            },
+          },
+        ]
+      );
       return;
     }
 
@@ -262,9 +316,8 @@ const ConnectedDevices = ({ navigation }) => {
 
       try {
         await syncAppleHealthData();
-        setConnectedDevices((prev) => ({ ...prev, apple_health: true }));
 
-        // Sauvegarder dans le profil utilisateur
+        // Sauvegarder dans le profil utilisateur AVANT de mettre à jour l'état UI
         const user = appContext.user;
         const externalConnections = user.externalConnections || {};
         externalConnections.apple_health = { connected: true };
@@ -279,13 +332,17 @@ const ConnectedDevices = ({ navigation }) => {
           const res = (await API.put("/user/me", modifiedUser))?.data;
           if (res) {
             await appContext.setUser(res);
+            // Mettre à jour l'état après sauvegarde réussie
+            setConnectedDevices((prev) => ({ ...prev, apple_health: true }));
           } else {
-            appContext.setUser({ ...user, externalConnections });
+            await appContext.setUser({ ...user, externalConnections });
+            setConnectedDevices((prev) => ({ ...prev, apple_health: true }));
           }
         } catch (apiError) {
           console.error("Erreur sauvegarde profil Apple Health:", apiError);
-          // Mettre à jour localement quand même
-          appContext.setUser({ ...user, externalConnections });
+          // Mettre à jour localement quand même pour que le switch reste activé
+          await appContext.setUser({ ...user, externalConnections });
+          setConnectedDevices((prev) => ({ ...prev, apple_health: true }));
         }
 
         Alert.alert(
@@ -500,9 +557,8 @@ const ConnectedDevices = ({ navigation }) => {
 
       // Synchroniser les données des 7 derniers jours
       await syncGoogleFitData();
-      setConnectedDevices((prev) => ({ ...prev, google_fit: true }));
 
-      // Sauvegarder dans le profil utilisateur
+      // Sauvegarder dans le profil utilisateur AVANT de mettre à jour l'état UI
       const user = appContext.user;
       const externalConnections = user.externalConnections || {};
       externalConnections.google_fit = { connected: true };
@@ -517,14 +573,18 @@ const ConnectedDevices = ({ navigation }) => {
         const res = (await API.put("/user/me", modifiedUser))?.data;
         if (res) {
           await appContext.setUser(res);
+          // Mettre à jour l'état après sauvegarde réussie
+          setConnectedDevices((prev) => ({ ...prev, google_fit: true }));
         } else {
           // Fallback si la réponse n'a pas de data
-          appContext.setUser({ ...user, externalConnections });
+          await appContext.setUser({ ...user, externalConnections });
+          setConnectedDevices((prev) => ({ ...prev, google_fit: true }));
         }
       } catch (apiError) {
         console.error("Erreur sauvegarde profil:", apiError);
-        // Mettre à jour localement quand même
-        appContext.setUser({ ...user, externalConnections });
+        // Mettre à jour localement quand même pour que le switch reste activé
+        await appContext.setUser({ ...user, externalConnections });
+        setConnectedDevices((prev) => ({ ...prev, google_fit: true }));
         // Ne pas bloquer - la connexion fonctionne même si la sauvegarde échoue
       }
 
