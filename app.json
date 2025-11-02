@@ -61,6 +61,12 @@
         {
           "healthSharePermission": "Nautic'Santé a besoin d'accéder à vos données de santé pour synchroniser automatiquement vos entraînements."
         }
+      ],
+      [
+        "@ovalmoney/react-native-fitness",
+        {
+          "androidClientId": "u0iht772eh485isvo9pt4cqrhlnt6oto.apps.googleusercontent.com"
+        }
       ]
     ],
     "userInterfaceStyle": "light",

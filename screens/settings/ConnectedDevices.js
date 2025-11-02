@@ -375,12 +375,14 @@ const ConnectedDevices = ({ navigation }) => {
 
     try {
       // Autoriser l'accès directement avec la bonne syntaxe
+      // Le Client ID OAuth est configuré dans app.json via le plugin
       const result = await GoogleFit.authorize({
         scopes: [
           Scopes.FITNESS_ACTIVITY_READ,
           Scopes.FITNESS_LOCATION_READ,
           Scopes.FITNESS_BODY_READ,
         ],
+        // Le clientId sera automatiquement lu depuis la configuration Android
       });
 
       console.log("Google Fit authorization result:", result);
